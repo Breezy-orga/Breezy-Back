@@ -9,7 +9,7 @@ router.post('/register', async (req, res) => {
   console.log('Payload reçu pour register:', req.body);
   try {
     const { username, email, password } = req.body;
-
+    console.log('Inscription avec username:', username, 'email:', email);
     // Vérifier si l'utilisateur existe déjà
     const existingUser = await User.findOne({ 
       $or: [{ email }, { username }] 

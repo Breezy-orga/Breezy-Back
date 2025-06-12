@@ -36,7 +36,9 @@ router.get('/feed', auth, async (req, res) => {
     .populate('likes', 'username')
     .sort({ createdAt: -1 })
     .limit(20);
-
+    if(posts.length === 0) {
+      return res.status(404).json({ message: 'Aucun post trouvé dans le flux' });
+    }
     res.json(posts);
   } catch (error) {
     res.status(500).json({ message: 'Erreur lors de la récupération du flux', error: error.message });
