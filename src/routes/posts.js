@@ -16,7 +16,7 @@ router.post('/', auth, async (req, res) => {
     });
 
     await post.save();
-    await post.populate('author', 'username name profilePicture');
+    await post.populate('author', 'username profilePicture');
 
     res.status(201).json(post);
   } catch (error) {
@@ -32,7 +32,7 @@ router.get('/feed', auth, async (req, res) => {
       author: { $in: [...user.following, req.user.userId] },
       isComment: false
     })
-    .populate('author', 'username name profilePicture')
+    .populate('author', 'username profilePicture')
     .populate('likes', 'username')
     .sort({ createdAt: -1 })
     .limit(20);
@@ -50,7 +50,7 @@ router.get('/user/:userId', auth, async (req, res) => {
       author: req.params.userId,
       isComment: false
     })
-    .populate('author', 'username name profilePicture')
+    .populate('author', 'username profilePicture')
     .populate('likes', 'username')
     .sort({ createdAt: -1 });
 
@@ -89,7 +89,7 @@ router.get('/:postId/comments', auth, async (req, res) => {
       parentPost: req.params.postId,
       isComment: true
     })
-    .populate('author', 'username name profilePicture')
+    .populate('author', 'username profilePicture')
     .populate('likes', 'username')
     .sort({ createdAt: -1 });
 
@@ -122,7 +122,7 @@ router.delete('/:postId', auth, async (req, res) => {
 router.get('/:postId', auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId)
-      .populate('author', 'username name profilePicture')
+      .populate('author', 'username profilePicture')
       .populate('likes', 'username');
     if (!post) {
       return res.status(404).json({ message: 'Post ou commentaire non trouvé' });

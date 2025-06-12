@@ -22,11 +22,7 @@ const userSchema = new mongoose.Schema({
     required: true,
     minlength: 6
   },
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
+  // Le champ name est supprimé, on utilise username à la place
   bio: {
     type: String,
     maxlength: 160,
@@ -35,6 +31,11 @@ const userSchema = new mongoose.Schema({
   profilePicture: {
     type: String,
     default: '/default-avatar.png'
+  },
+  theme: {
+    type: String,
+    enum: ['light', 'dark'],
+    default: 'light'
   },
   followers: [{
     type: mongoose.Schema.Types.ObjectId,

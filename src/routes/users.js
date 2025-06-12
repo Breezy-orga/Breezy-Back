@@ -202,4 +202,44 @@ router.get('/suggestions', auth, async (req, res) => {
   }
 });
 
+// Obtenir les préférences de thème de l'utilisateur
+router.get('/preferences/theme', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Retourne l'attribut theme de l'utilisateur ou 'light' par défaut
+    res.json({ theme: user.theme || 'light' });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur lors de la récupération des préférences de thème', error: error.message });
+  }
+});
+
+// Mettre à jour les préférences de thème de l'utilisateur
+router.put('/preferences/theme', auth, async (req, res) => {
+  try {
+    const { theme } = req.body;
+    
+    // Vérifier que le thème est valide
+    if (theme !== 'light' && theme !== 'dark') {
+      return res.status(400).json({ message: 'Le thème doit être "light" ou "dark"' });
+    }
+    
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Mettre à jour le thème utilisateur
+    user.theme = theme;
+    await user.save();
+    
+    res.json({ theme: user.theme });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur lors de la mise à jour du thème', error: error.message });
+  }
+});
+
 module.exports = router; 
