@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 
 // Get current user profile
 router.get('/me', auth, async (req, res) => {
@@ -34,6 +35,35 @@ router.put('/me', auth, async (req, res) => {
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Renvoyer tous les utilisateurs sauf soi-même
+router.get('/all', auth, async (req, res) => {
+  try {
+    // Vérifie que l'userId est bien un ObjectId valide
+    if (!mongoose.Types.ObjectId.isValid(req.user.userId)) {
+      return res.status(400).json({ message: 'ID utilisateur invalide' })
+    }
+
+    const allUsers = await User.find({ _id: { $ne: req.user.userId } }).select('username profilePicture');
+
+    const currentUser = await User.findById(req.user.userId).select('following');
+
+    const users = allUsers.map(user => ({
+      _id: user._id,
+      username: user.username,
+      profilePicture: user.profilePicture,
+      isFollowing: currentUser.following.includes(user._id),
+    }));
+
+    res.json(users)
+  } catch (error) {
+    console.error('[ERROR] /users/all:', error)
+    res.status(500).json({
+      message: 'Erreur lors de la récupération des utilisateurs',
+      error: error.message
+    })
   }
 });
 
@@ -183,6 +213,47 @@ router.post('/:userId/follow', auth, async (req, res) => {
     res.status(500).json({ message: 'Erreur lors du follow/unfollow', error: error.message });
   }
 });
+
+// Obtenir la liste des abonnements de l'utilisateur connecté
+router.get('/me/following', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).populate('following', '_id username profilePicture');
+    res.json(user.following);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+});
+
+// Obtenir la liste des abonnés de l'utilisateur connecté
+router.get('/me/followers', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).populate('followers', '_id username profilePicture');
+    res.json(user.followers);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+});
+
+router.get('/:id/followers', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).populate('followers', 'username profilePicture')
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' })
+    res.json(user.followers)
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message })
+  }
+})
+
+router.get('/:id/following', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).populate('following', 'username profilePicture')
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' })
+    res.json(user.following)
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message })
+  }
+})
+
 
 // Obtenir les suggestions d'utilisateurs
 router.get('/suggestions', auth, async (req, res) => {
