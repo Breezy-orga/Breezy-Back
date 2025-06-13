@@ -82,10 +82,19 @@ router.post('/login', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
-    console.log('Token generated successfully for user:', email);
 
+    // Définir le cookie sécurisé
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
+      path: '/'
+    });
+
+    // Répondre avec les infos du user (sans le token)
     res.json({
-      token,
+      message: 'Connexion réussie',
       user: {
         id: user._id,
         username: user.username,
@@ -98,6 +107,7 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la connexion', error: error.message });
   }
 });
+
 
 // Récupérer l'utilisateur connecté
 router.get('/me', auth, async (req, res) => {

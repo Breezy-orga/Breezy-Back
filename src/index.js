@@ -12,6 +12,10 @@ const userRoutes = require('./routes/users');
 
 const app = express();
 
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+
+
 // Middleware
 let NODE_ENV = process.env.NODE_ENV || 'development';
 
