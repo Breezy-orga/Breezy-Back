@@ -12,6 +12,7 @@ const authRoutes = require('./routes/auth');
 const postRoutes = require('./routes/posts');
 const userRoutes = require('./routes/users');
 const PrivateMessages = require('./routes/privateMessage');
+const router = require('./routes/auth');
 
 
 const app = express();
@@ -56,10 +57,10 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Routes
+app.use('/api/privateMessages', PrivateMessages);
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/private-messages', PrivateMessages);
 
 //swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
@@ -104,3 +105,4 @@ if (NODE_ENV === 'development' || process.env.FORCE_HTTP === 'true') {
     process.exit(1);
   }
 }
+
