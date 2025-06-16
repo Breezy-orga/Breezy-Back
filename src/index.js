@@ -5,10 +5,14 @@ const cors = require('cors');
 const morgan = require('morgan');
 const https = require('https');
 const fs = require('fs');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpecs = require('./swagger'); // ton fichier swagger.js
 
 const authRoutes = require('./routes/auth');
 const postRoutes = require('./routes/posts');
 const userRoutes = require('./routes/users');
+const PrivateMessages = require('./routes/privateMessage');
+
 
 const app = express();
 
@@ -55,17 +59,24 @@ app.use(morgan('dev'));
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/private-messages', PrivateMessages);
+
+//swagger
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ message: 'Une erreur est survenue', error: err.message });
+  res.status(500).json({ message: 'Something wrong happend', error: err.message });
 });
+
+
 
 // Database connection
 mongoose.connect(process.env.MONGODB_URI || 'localhost:27017/breezy')
-  .then(() => console.log('Connecté à MongoDB'))
-  .catch(err => console.error('Erreur de connexion à MongoDB:', err));
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('Error connecting to MongoDB:', err));
 
 // Start server
 const PORT = process.env.PORT || 5000;
@@ -86,10 +97,10 @@ if (NODE_ENV === 'development' || process.env.FORCE_HTTP === 'true') {
       cert: fs.readFileSync(process.env.SSL_CERT_PATH || '/etc/ssl/certs/fullchain.pem')
     };
     https.createServer(httpsOptions, app).listen(PORT, () => {
-      console.log(`Serveur démarré sur le port ${PORT} (HTTPS)`);
+      console.log(`Server running on port ${PORT} (HTTPS)`);
     });
   } catch (err) {
-    console.error('Erreur lors du chargement des certificats SSL:', err.message);
+    console.error('Error loading SSL certificates:', err.message);
     process.exit(1);
   }
 }

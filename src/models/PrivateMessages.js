@@ -17,10 +17,11 @@ const PrivateMessageSchema = new mongoose.Schema({
     required: true
   }
 }, {
-  timestamps: true
+  // The timestamps option automatically adds createdAt and updatedAt fields to the schema
+    timestamps: true
 });
 
 
-const PrivateMessages = mongoose.model('PrivateMessages', postSchema);
+const PrivateMessages = mongoose.model('PrivateMessages', PrivateMessageSchema);
 
 module.exports = PrivateMessages;
