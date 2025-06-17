@@ -1,24 +1,34 @@
-const express = require('express');
+import express, { Request, Response } from 'express';
+import authMiddleware from '../middleware/auth';
+import User from '../models/User';
+import mongoose from 'mongoose';
+
 const router = express.Router();
-const auth = require('../middleware/auth');
-const User = require('../models/User');
 
 // Get current user profile
-router.get('/me', auth, async (req, res) => {
+router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+
     const user = await User.findById(req.user.userId).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
   }
 });
 
 // Update user profile
-router.put('/me', auth, async (req, res) => {
+router.put('/me', authMiddleware, async (req: Request, res: Response) => {
   try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+    
     const { username, bio, profilePicture } = req.body;
     const user = await User.findById(req.user.userId);
 
@@ -33,12 +43,12 @@ router.put('/me', auth, async (req, res) => {
     await user.save();
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
   }
 });
 
 // Get user by ID
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.params.id)
       .select('-password')
@@ -51,13 +61,17 @@ router.get('/:id', auth, async (req, res) => {
 
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
   }
 });
 
 // Follow user
-router.post('/follow/:id', auth, async (req, res) => {
+router.post('/follow/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+    
     const userToFollow = await User.findById(req.params.id);
     const currentUser = await User.findById(req.user.userId);
 
@@ -65,25 +79,29 @@ router.post('/follow/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (currentUser.following.includes(req.params.id)) {
+    if (currentUser.following.some(id => id.toString() === req.params.id)) {
       return res.status(400).json({ message: 'Already following this user' });
     }
 
-    currentUser.following.push(req.params.id);
-    userToFollow.followers.push(req.user.userId);
+    currentUser.following.push(new mongoose.Types.ObjectId(req.params.id));
+    userToFollow.followers.push(new mongoose.Types.ObjectId(req.user.userId));
 
     await currentUser.save();
     await userToFollow.save();
 
     res.json({ message: 'User followed successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
   }
 });
 
 // Unfollow user
-router.post('/unfollow/:id', auth, async (req, res) => {
+router.post('/unfollow/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+    
     const userToUnfollow = await User.findById(req.params.id);
     const currentUser = await User.findById(req.user.userId);
 
@@ -91,7 +109,7 @@ router.post('/unfollow/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (!currentUser.following.includes(req.params.id)) {
+    if (!currentUser.following.some(id => id.toString() === req.params.id)) {
       return res.status(400).json({ message: 'Not following this user' });
     }
 
@@ -99,7 +117,7 @@ router.post('/unfollow/:id', auth, async (req, res) => {
       id => id.toString() !== req.params.id
     );
     userToUnfollow.followers = userToUnfollow.followers.filter(
-      id => id.toString() !== req.user.userId
+      id => id.toString() !== req.user!.userId
     );
 
     await currentUser.save();
@@ -107,12 +125,12 @@ router.post('/unfollow/:id', auth, async (req, res) => {
 
     res.json({ message: 'User unfollowed successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
   }
 });
 
 // Obtenir le profil d'un utilisateur
-router.get('/:userId', auth, async (req, res) => {
+router.get('/:userId', authMiddleware, async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.params.userId)
       .select('-password')
@@ -125,30 +143,48 @@ router.get('/:userId', auth, async (req, res) => {
 
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la récupération du profil', error: error.message });
+    res.status(500).json({ 
+      message: 'Erreur lors de la récupération du profil', 
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 });
 
 // Mettre à jour le profil
-router.put('/profile', auth, async (req, res) => {
+router.put('/profile', authMiddleware, async (req: Request, res: Response) => {
   try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+    
     const { name, bio, profilePicture } = req.body;
     const user = await User.findById(req.user.userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
 
-    if (name) user.name = name;
+    if (name && 'name' in user) (user as any).name = name;
     if (bio) user.bio = bio;
     if (profilePicture) user.profilePicture = profilePicture;
 
     await user.save();
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la mise à jour du profil', error: error.message });
+    res.status(500).json({ 
+      message: 'Erreur lors de la mise à jour du profil', 
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 });
 
 // Suivre/Ne plus suivre un utilisateur
-router.post('/:userId/follow', auth, async (req, res) => {
+router.post('/:userId/follow', authMiddleware, async (req: Request, res: Response) => {
   try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+    
     if (req.params.userId === req.user.userId) {
       return res.status(400).json({ message: 'Vous ne pouvez pas vous suivre vous-même' });
     }
@@ -156,23 +192,24 @@ router.post('/:userId/follow', auth, async (req, res) => {
     const userToFollow = await User.findById(req.params.userId);
     const currentUser = await User.findById(req.user.userId);
 
-    if (!userToFollow) {
+    if (!userToFollow || !currentUser) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
-    const isFollowing = currentUser.following.includes(req.params.userId);
+    const isFollowing = currentUser.following.some(id => id.toString() === req.params.userId);
+    
     if (isFollowing) {
       // Ne plus suivre
       currentUser.following = currentUser.following.filter(
         id => id.toString() !== req.params.userId
       );
       userToFollow.followers = userToFollow.followers.filter(
-        id => id.toString() !== req.user.userId
+        id => id.toString() !== req.user!.userId
       );
     } else {
       // Suivre
-      currentUser.following.push(req.params.userId);
-      userToFollow.followers.push(req.user.userId);
+      currentUser.following.push(new mongoose.Types.ObjectId(req.params.userId));
+      userToFollow.followers.push(new mongoose.Types.ObjectId(req.user!.userId));
     }
 
     await currentUser.save();
@@ -180,14 +217,26 @@ router.post('/:userId/follow', auth, async (req, res) => {
 
     res.json({ following: !isFollowing });
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors du follow/unfollow', error: error.message });
+    res.status(500).json({ 
+      message: 'Erreur lors du follow/unfollow', 
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 });
 
 // Obtenir les suggestions d'utilisateurs
-router.get('/suggestions', auth, async (req, res) => {
+router.get('/suggestions', authMiddleware, async (req: Request, res: Response) => {
   try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+    
     const currentUser = await User.findById(req.user.userId);
+    
+    if (!currentUser) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
     const users = await User.find({
       _id: {
         $nin: [...currentUser.following, req.user.userId]
@@ -198,14 +247,22 @@ router.get('/suggestions', auth, async (req, res) => {
 
     res.json(users);
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la récupération des suggestions', error: error.message });
+    res.status(500).json({ 
+      message: 'Erreur lors de la récupération des suggestions', 
+      error: error instanceof Error ? error.message : String(error) 
+    });
   }
 });
 
 // Obtenir les préférences de thème de l'utilisateur
-router.get('/preferences/theme', auth, async (req, res) => {
+router.get('/preferences/theme', authMiddleware, async (req: Request, res: Response) => {
   try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+    
     const user = await User.findById(req.user.userId);
+    
     if (!user) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
@@ -213,13 +270,20 @@ router.get('/preferences/theme', auth, async (req, res) => {
     // Retourne l'attribut theme de l'utilisateur ou 'light' par défaut
     res.json({ theme: user.theme || 'light' });
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la récupération des préférences de thème', error: error.message });
+    res.status(500).json({ 
+      message: 'Erreur lors de la récupération des préférences de thème', 
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 });
 
 // Mettre à jour les préférences de thème de l'utilisateur
-router.put('/preferences/theme', auth, async (req, res) => {
+router.put('/preferences/theme', authMiddleware, async (req: Request, res: Response) => {
   try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+    
     const { theme } = req.body;
     
     // Vérifier que le thème est valide
@@ -238,8 +302,11 @@ router.put('/preferences/theme', auth, async (req, res) => {
     
     res.json({ theme: user.theme });
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la mise à jour du thème', error: error.message });
+    res.status(500).json({ 
+      message: 'Erreur lors de la mise à jour du thème', 
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 });
 
-module.exports = router; 
+export default router;

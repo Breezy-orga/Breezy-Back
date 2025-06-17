@@ -1,24 +1,22 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const morgan = require('morgan');
-const https = require('https');
-const fs = require('fs');
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpecs = require('./swagger'); // ton fichier swagger.js
+import dotenv from 'dotenv';
+dotenv.config();
 
-const authRoutes = require('./routes/auth');
-const postRoutes = require('./routes/posts');
-const userRoutes = require('./routes/users');
-const PrivateMessages = require('./routes/privateMessage');
-const router = require('./routes/auth');
+import express, { Request, Response, NextFunction, Application } from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import morgan from 'morgan';
+import https from 'https';
+import fs from 'fs';
 
+import authRoutes from './routes/auth';
+import postRoutes from './routes/posts';
+import userRoutes from './routes/users';
+import mediaRoutes from './routes/media';
 
-const app = express();
+const app: Application = express();
 
 // Middleware
-let NODE_ENV = process.env.NODE_ENV || 'development';
+const NODE_ENV: string = process.env.NODE_ENV || 'development';
 
 // CORS configuration
 // CORS dynamique et portable
@@ -34,11 +32,11 @@ if (NODE_ENV === 'development') {
 } else {
   // En prod : autorise uniquement le(s) domaine(s) frontend déclarés
   // FRONTEND_URL peut être une liste séparée par des virgules
-  const allowedOrigins = process.env.FRONTEND_URL
+  const allowedOrigins: string[] = process.env.FRONTEND_URL
     ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
     : [];
   app.use(cors({
-    origin: function(origin, callback) {
+    origin: function(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -57,30 +55,34 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Routes
-app.use('/api/privateMessages', PrivateMessages);
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
-
-//swagger
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
-
+app.use('/api/media', mediaRoutes);
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+interface ErrorWithMessage extends Error {
+  stack?: string;
+}
+
+app.use((err: ErrorWithMessage, req: Request, res: Response, next: NextFunction) => {
   console.error(err.stack);
-  res.status(500).json({ message: 'Something wrong happend', error: err.message });
+  res.status(500).json({ message: 'Une erreur est survenue', error: err.message });
 });
 
-
-
 // Database connection
-mongoose.connect(process.env.MONGODB_URI || 'localhost:27017/breezy')
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('Error connecting to MongoDB:', err));
+// Options Mongoose recommandées pour MongoDB Atlas
+mongoose.connect(process.env.MONGODB_URI || '')
+  .then(() => {
+    console.log('Connecté avec succès à MongoDB Atlas');
+  })
+  .catch(err => {
+    console.error('Erreur de connexion à MongoDB Atlas:', err);
+    process.exit(1); // Quitter en cas d'échec de connexion
+  });
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT: number = parseInt(process.env.PORT || '5000', 10);
 
 console.log('ENV DEBUG:', process.env);
 
@@ -98,11 +100,10 @@ if (NODE_ENV === 'development' || process.env.FORCE_HTTP === 'true') {
       cert: fs.readFileSync(process.env.SSL_CERT_PATH || '/etc/ssl/certs/fullchain.pem')
     };
     https.createServer(httpsOptions, app).listen(PORT, () => {
-      console.log(`Server running on port ${PORT} (HTTPS)`);
+      console.log(`Serveur démarré sur le port ${PORT} (HTTPS)`);
     });
   } catch (err) {
-    console.error('Error loading SSL certificates:', err.message);
+    console.error('Erreur lors du chargement des certificats SSL:', err instanceof Error ? err.message : String(err));
     process.exit(1);
   }
 }
-
