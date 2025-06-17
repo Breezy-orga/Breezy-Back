@@ -1,13 +1,12 @@
-const PrivateMessagesRepository = require('../repositories/privateMessageRepository');
-const logger = require('../utils/logger'); // Assuming logger is set up in utils/logger.js
+import { PrivateMessagesRepository } from '../repository/privateMessage.repository';
 
-class PrivateMessageService {
+export class PrivateMessageService {
   static async createPrivateMessage(senderId, receiverId, content) {
     try {
       const message = await PrivateMessagesRepository.createPrivateMessage(senderId, receiverId, content);
       return message;
     } catch (error) {
-      logger.error('Error creating private message', { error });
+      console.error('Error creating private message', { error });
       throw new Error('Could not create private message');
     }
   }
@@ -17,7 +16,7 @@ class PrivateMessageService {
       const messages = await PrivateMessagesRepository.getMessagesWith(senderId, receiverId);
       return messages;
     } catch (error) {
-      logger.error('Error fetching private messages', { error, senderId, receiverId });
+      console.error('Error fetching private messages', { error, senderId, receiverId });
       throw new Error('Could not fetch private messages');
     }
   }
@@ -27,7 +26,7 @@ class PrivateMessageService {
       const result = await PrivateMessagesRepository.deleteMessage(messageId);
       return result;
     } catch (error) {
-      logger.error('Error deleting private message', { error, messageId });
+      console.error('Error deleting private message', { error, messageId });
       throw new Error('Could not delete private message');
     }
   }

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const PrivateMessagesRepository = require('../repository/privateMessageRepository');    
+const PrivateMessagesRepository = require('../repository/privateMessage.repository');    
 
 // obtenir les messages privés entre deux utilisateurs
 
