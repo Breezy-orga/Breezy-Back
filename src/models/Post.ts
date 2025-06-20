@@ -16,9 +16,11 @@ export interface IPost extends Document {
   author: mongoose.Types.ObjectId;
   likes: mongoose.Types.ObjectId[];
   comments: mongoose.Types.ObjectId[];
+  commentsCount: number;
   parentPost?: mongoose.Types.ObjectId;
   isComment: boolean;
   media: IMedia[];
+  tags: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,7 +45,7 @@ const postSchema = new Schema<IPost>(
   {
     content: {
       type: String,
-      required: true,
+      required: false, // Rendu optionnel pour permettre les posts avec seulement des médias
       maxlength: 280,
     },
     author: {
@@ -63,6 +65,10 @@ const postSchema = new Schema<IPost>(
         ref: 'Comment',
       },
     ],
+    commentsCount: {
+      type: Number,
+      default: 0,
+    },
     parentPost: {
       type: Schema.Types.ObjectId,
       ref: 'Post',
@@ -72,6 +78,10 @@ const postSchema = new Schema<IPost>(
       default: false,
     },
     media: [mediaSchema], // Tableau de médias (photos/vidéos)
+    tags: [{
+      type: String,
+      trim: true
+    }], // Tableau de tags pour catégoriser les posts
   },
   {
     timestamps: true,
@@ -81,6 +91,7 @@ const postSchema = new Schema<IPost>(
 // Index pour améliorer les performances des requêtes
 postSchema.index({ author: 1, createdAt: -1 });
 postSchema.index({ parentPost: 1 });
+postSchema.index({ commentsCount: -1 }); // Index pour trier par nombre de commentaires
 
 const Post = mongoose.model<IPost, IPostModel>('Post', postSchema);
 

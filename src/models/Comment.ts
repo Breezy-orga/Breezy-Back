@@ -2,6 +2,12 @@ import mongoose, { Document, Schema, Model } from 'mongoose';
 import { IUser } from './User';
 import { IPost } from './Post';
 
+// Interface représentant le format des médias
+interface IMedia {
+  base64: string;
+  contentType: string;
+}
+
 // Interface représentant un commentaire
 export interface IComment extends Document {
   content: string;
@@ -9,6 +15,7 @@ export interface IComment extends Document {
   post: mongoose.Types.ObjectId | IPost;
   parentComment?: mongoose.Types.ObjectId | IComment;
   likes: mongoose.Types.ObjectId[] | IUser[];
+  media?: IMedia[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +50,16 @@ const commentSchema = new Schema<IComment>(
       {
         type: Schema.Types.ObjectId,
         ref: 'User',
+      },
+    ],
+    media: [
+      {
+        base64: {
+          type: String,
+        },
+        contentType: {
+          type: String,
+        },
       },
     ],
   },
