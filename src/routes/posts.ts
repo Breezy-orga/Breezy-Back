@@ -6,6 +6,23 @@ import mongoose from 'mongoose';
 
 const router = express.Router();
 
+
+
+
+/**
+     * @swagger
+     * /api/posts:
+     *   post:
+     *     summary: Créer un nouveau post
+     *     tags: [Posts]
+     *     responses:
+     *       201:
+     *         description: Post créé avec succès
+     *       400:
+     *         description: Mauvaise requête, paramètres manquants
+     *       500:
+     *         description: Erreur lors de la création du post
+     */
 // Créer un nouveau post
 router.post('/', authMiddleware, express.json({limit: '16mb'}), async (req: Request, res: Response) => {
   try {
@@ -42,6 +59,29 @@ router.post('/', authMiddleware, express.json({limit: '16mb'}), async (req: Requ
   }
 });
 
+
+
+/**
+     * @swagger
+     * /api/posts/feed:
+     *   parameters:
+     *     - in: path
+     *       name: postId
+     *       required: true
+     *       description: ID du post à récupérer
+     *       schema:
+     *         type: string
+     *   get:
+     *     summary: Récupérer le fil d'actualités
+     *     tags: [Posts]
+     *     responses:
+     *       200:
+     *         description: Fil d'actualités récupéré avec succès
+     *       400:
+     *         description: Mauvaise requête, paramètres manquants
+     *       500:
+     *         description: Erreur lors de la récupération du fil d'actualités
+     */
 // Obtenir le flux d'actualités
 router.get('/feed', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -87,6 +127,29 @@ router.get('/feed', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
+
+
+/**
+     * @swagger
+     * /api/posts/user/{userId}:
+     *   parameters:
+     *     - in: path
+     *       name: userId
+     *       required: true
+     *       description: ID de l'utilisateur dont on veut récupérer les posts
+     *       schema:
+     *         type: string
+     *   get:
+     *     summary: Récupérer les posts d'un utilisateur
+     *     tags: [Posts]
+     *     responses:
+     *       200:
+     *         description: Posts récupérés avec succès
+     *       400:
+     *         description: Mauvaise requête, paramètres manquants
+     *       500:
+     *         description: Erreur lors de la récupération des posts
+     */
 // Obtenir les posts d'un utilisateur
 router.get('/user/:userId', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -107,6 +170,28 @@ router.get('/user/:userId', authMiddleware, async (req: Request, res: Response) 
   }
 });
 
+
+/**
+     * @swagger
+     * /api/posts/{postId}/like:
+     *   parameters:
+     *     - in: path
+     *       name: postId
+     *       required: true
+     *       description: ID du post à liker
+     *       schema:
+     *         type: string
+     *   post:
+     *     summary: Liker un post
+     *     tags: [Posts]
+     *     responses:
+     *       201:
+     *         description: Post liké avec succès
+     *       400:
+     *         description: Mauvaise requête, paramètres manquants
+     *       500:
+     *         description: Erreur lors du like du post
+     */
 // Liker/Unliker un post
 router.post('/:postId/like', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -138,6 +223,29 @@ router.post('/:postId/like', authMiddleware, async (req: Request, res: Response)
   }
 });
 
+
+
+/**
+     * @swagger
+     * /api/posts/{postId}/comments:
+     *   parameters:
+     *     - in: path
+     *       name: postId
+     *       required: true
+     *       description: ID du post dont on veut récupérer les commentaires
+     *       schema:
+     *         type: string
+     *   get:
+     *     summary: Récupérer les commentaires d'un post
+     *     tags: [Posts]
+     *     responses:
+     *       200:
+     *         description: Commentaires récupérés avec succès
+     *       400:
+     *         description: Mauvaise requête, paramètres manquants
+     *       500:
+     *         description: Erreur lors de la récupération des commentaires
+     */
 // Obtenir les commentaires d'un post
 router.get('/:postId/comments', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -158,6 +266,29 @@ router.get('/:postId/comments', authMiddleware, async (req: Request, res: Respon
   }
 });
 
+
+
+/**
+     * @swagger
+     * /api/posts/{postId}:
+     *   parameters:
+     *     - in: path
+     *       name: postId
+     *       required: true
+     *       description: ID du post à supprimer
+     *       schema:
+     *         type: string
+     *   delete:
+     *     summary: Supprimer un post
+     *     tags: [Posts]
+     *     responses:
+     *       201:
+     *         description: Post supprimé avec succès
+     *       400:
+     *         description: Mauvaise requête, paramètres manquants
+     *       500:
+     *         description: Erreur lors de la suppression du post
+     */
 // Supprimer un post
 router.delete('/:postId', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -184,6 +315,29 @@ router.delete('/:postId', authMiddleware, async (req: Request, res: Response) =>
   }
 });
 
+
+
+/**
+     * @swagger
+     * /api/posts/{postId}:
+     *   parameters:
+     *     - in: path
+     *       name: postId
+     *       required: true
+     *       description: ID du post à récupérer
+     *       schema:
+     *         type: string
+     *   get:
+     *     summary: Récupérer un post par son ID
+     *     tags: [Posts]
+     *     responses:
+     *       200:
+     *         description: Post récupéré avec succès
+     *       400:
+     *         description: Mauvaise requête, paramètres manquants
+     *       500:
+     *         description: Erreur lors de la récupération du post
+     */
 // Ajouter la route pour obtenir un post ou commentaire par son id
 router.get('/:postId', authMiddleware, async (req: Request, res: Response) => {
   try {

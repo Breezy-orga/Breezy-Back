@@ -1,7 +1,7 @@
-import { PrivateMessagesRepository } from '../repository/privateMessage.repository';
+import { PrivateMessagesRepository } from '../repositories/privateMessage.repository';
 
 export class PrivateMessageService {
-  static async createPrivateMessage(senderId, receiverId, content) {
+  static async createPrivateMessage(senderId: number, receiverId: number, content: string) {
     try {
       const message = await PrivateMessagesRepository.createPrivateMessage(senderId, receiverId, content);
       return message;
@@ -11,7 +11,7 @@ export class PrivateMessageService {
     }
   }
 
-  static async getMessagesWith(senderId, receiverId) {
+  static async getMessagesWith(senderId: number, receiverId: number) {
     try {
       const messages = await PrivateMessagesRepository.getMessagesWith(senderId, receiverId);
       return messages;
@@ -21,7 +21,7 @@ export class PrivateMessageService {
     }
   }
 
-  static async deleteMessage(messageId) {
+  static async deleteMessage(messageId: number) {
     try {
       const result = await PrivateMessagesRepository.deleteMessage(messageId);
       return result;

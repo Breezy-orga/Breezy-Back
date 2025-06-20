@@ -12,6 +12,8 @@ import authRoutes from './routes/auth';
 import postRoutes from './routes/posts';
 import userRoutes from './routes/users';
 import mediaRoutes from './routes/media';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpecs from './swagger';
 
 const app: Application = express();
 
@@ -51,8 +53,13 @@ if (NODE_ENV === 'development') {
   app.options('*', cors());
 }
 
+// Swagger setup
+
 app.use(express.json());
 app.use(morgan('dev'));
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
+
 
 // Routes
 app.use('/api/auth', authRoutes);

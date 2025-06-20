@@ -13,7 +13,7 @@ export const PrivateMessagesRepository = {
     return message;
   },
 
-  async getMessagesWith(sender: string, receiver: string) {
+  async getMessagesWith(sender: string, receiver: string): Promise<IPrivateMessage[]> {
     try {
       const messages = await PrivateMessage.find({
         $or: [
@@ -31,7 +31,7 @@ export const PrivateMessagesRepository = {
     }
   },
 
-  async deleteMessage(messageId: string) {
+  async deleteMessage(messageId: string): Promise<boolean> {
     try {
       const result = await PrivateMessage.deleteOne({ _id: messageId });
       if (result.deletedCount === 0) {

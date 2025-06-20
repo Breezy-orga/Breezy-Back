@@ -1,14 +1,10 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 import { IUser } from './User';
 import { IComment } from './Comment';
+import { IMedia } from './media';
+import mediaSchema from './media';
 
-// Interface pour le média
-export interface IMedia {
-  filename?: string;
-  base64?: string;
-  contentType?: string;
-  alt?: string;
-}
+
 
 // Interface représentant un post
 export interface IPost extends Document {
@@ -25,19 +21,7 @@ export interface IPost extends Document {
 
 // Interface pour le modèle avec les méthodes statiques éventuelles
 interface IPostModel extends Model<IPost> {
-  // Ajoutez ici des méthodes statiques si nécessaire
 }
-
-// Sous-schéma pour les médias
-const mediaSchema = new Schema<IMedia>(
-  {
-    filename: String,
-    base64: String,
-    contentType: String,
-    alt: String,
-  },
-  { _id: false }
-);
 
 const postSchema = new Schema<IPost>(
   {

@@ -9,7 +9,7 @@ declare module 'express' {
 }
 
 const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
-  try {
+  /*try {
     // Récupérer le token du header
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
@@ -24,7 +24,7 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction): void =
     next();
   } catch (error) {
     res.status(401).json({ message: 'Token invalide' });
-  }
+  }*/
 };
 
 export default authMiddleware;

@@ -2,44 +2,49 @@ import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import authMiddleware from '../middleware/auth';
+import { AuthService } from '@/services/authService';
 
 const router = express.Router();
 
+
+
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: Inscription d'un nouvel utilisateur
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Utilisateur créé
+ *       400:
+ *         description: Paramètres invalides
+ *       500:
+ *         description: Erreur serveur
+ */
 // Inscription
 router.post('/register', async (req: Request, res: Response) => {
   console.log('Payload reçu pour register:', req.body);
   try {
-    const { username, email, password } = req.body;
-
-    // Vérifier si l'utilisateur existe déjà
-    const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
-        message: 'Un utilisateur avec cet email ou ce nom d\'utilisateur existe déjà'
-      });
-    }
-
-    // Créer un nouvel utilisateur
-    const user = new User({
-      username,
-      email,
-      password
-    });
+    const user = await AuthService.register(req.body.username, req.body.email, req.body.password);
 
     await user.save();
 
-    // Générer le token
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'fallback_secret',
-      { expiresIn: '24h' }
-    );
-
     res.status(201).json({
-      token,
+      //token: AuthService.generateToken(user),
       user: {
         id: user._id,
         username: user.username,
@@ -57,54 +62,49 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 });
 
+
+
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Connexion utilisateur
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Connexion réussie
+ *       400:
+ *         description: Paramètres invalides
+ *       401:
+ *         description: Identifiants invalides
+ *       500:
+ *         description: Erreur serveur
+ */
 // Connexion
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { identifier, password } = req.body;
-    console.log('Login attempt with identifier:', identifier);
-
-    // Trouver l'utilisateur par email ou username
-    const user = await User.findOne({
-      $or: [
-        { email: identifier },
-        { username: identifier }
-      ]
-    });
-    console.log('User found:', user ? 'Yes' : 'No');
-    
-    if (!user) {
-      console.log('No user found with identifier:', identifier);
-      return res.status(401).json({ message: 'Identifiant ou mot de passe incorrect' });
-    }
-
-    // Vérifier le mot de passe
-    const isMatch = await user.comparePassword(password);
-    console.log('Password match:', isMatch ? 'Yes' : 'No');
-    
-    if (!isMatch) {
-      console.log('Password does not match for user:', identifier);
-      return res.status(401).json({ message: 'Identifiant ou mot de passe incorrect' });
-    }
-
-    // Générer le token
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'fallback_secret',
-      { expiresIn: '24h' }
-    );
-    console.log('Token generated successfully for user:', identifier);
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        profilePicture: user.profilePicture
-      }
-    });
+    const user = await AuthService.login(req.body.email, req.body.password);
+    res.json({ user, token: AuthService.generateToken(user) });
   } catch (error) {
     console.error('Login error:', error);
+    if (error instanceof Error && error.message === 'User not found') {
+      return res.status(400).json({ message: 'Identifiants invalides' });
+    }
+    if (error instanceof Error && error.message === 'Invalid password') {
+      return res.status(401).json({ message: 'Identifiants invalides' });
+    }
+    // Gérer les autres erreurs
     res.status(500).json({ 
       message: 'Erreur lors de la connexion', 
       error: error instanceof Error ? error.message : String(error) 
@@ -112,20 +112,36 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 });
 
+
+
+/**
+     * @swagger
+     * /api/auth/me:
+     *   get:
+     *     summary: Récupérer les informations de l'utilisateur connecté
+     *     tags: [Auth]
+     *     responses:
+     *       200:
+     *         description: Informations de l'utilisateur récupérées avec succès
+     *       401:
+     *         description: Utilisateur non authentifié
+     *       500:
+     *         description: Erreur lors de la récupération des informations de l'utilisateur
+     */
 // Récupérer l'utilisateur connecté
 router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   try {
-    if (!req.user?.userId) {
-      return res.status(401).json({ message: 'Utilisateur non authentifié' });
-    }
-    
-    const user = await User.findById(req.user.userId).select('-password');
-    res.json(user);
+    const user = await AuthService.getUserById(String(req.user?.userId));
+    res.status(200).json(user);
   } catch (error) {
-    res.status(500).json({ 
-      message: 'Erreur serveur', 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    if (error instanceof Error && error.message === 'User not found') {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    } else {
+      res.status(500).json({
+        message: 'Erreur serveur',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   }
 });
 
