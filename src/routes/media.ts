@@ -128,7 +128,7 @@ router.get('/post/:postId/media/:mediaIndex', async (req: Request, res: Response
       const contentType = media.contentType || 'image/jpeg';
       
       // Définir les en-têtes
-      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Type', String(contentType));
       res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache 1 an
       
       // Envoyer l'image
