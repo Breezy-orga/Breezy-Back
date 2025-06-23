@@ -15,6 +15,8 @@ import mediaRoutes from './routes/media';
 import privateMessageRoutes from './routes/privateMessage';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpecs from './swagger';
+import commentRoutes from './routes/comments';
+import notificationRoutes from './routes/notifications';
 
 const app: Application = express();
 
@@ -56,7 +58,8 @@ if (NODE_ENV === 'development') {
 
 // Swagger setup
 
-app.use(express.json());
+// Augmentation de la limite de taille des requêtes JSON à 16MB pour supporter les images en base64
+app.use(express.json({ limit: '16mb' }));
 app.use(morgan('dev'));
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
@@ -68,6 +71,8 @@ app.use('/api/posts', postRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/privateMessages', privateMessageRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Error handling middleware
 interface ErrorWithMessage extends Error {

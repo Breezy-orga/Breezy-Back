@@ -9,6 +9,7 @@ export interface IUser extends Document {
   bio: string;
   profilePicture: string;
   theme: 'light' | 'dark';
+  profileViews: number;
   followers: mongoose.Types.ObjectId[];
   following: mongoose.Types.ObjectId[];
   createdAt: Date;
@@ -68,6 +69,10 @@ const userSchema = new Schema<IUser>(
         ref: 'User',
       },
     ],
+    profileViews: {
+      type: Number,
+      default: 0
+    },
     createdAt: {
       type: Date,
       default: Date.now,

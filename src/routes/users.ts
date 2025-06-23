@@ -42,7 +42,7 @@ class UsersRoutes {
       res.status(500).json({ message: 'Failed to fetch users', error: error instanceof Error ? error.message : String(error) });
     }
   });
-  
+
   /**
    * @swagger
    * /api/users/me:
@@ -128,6 +128,67 @@ class UsersRoutes {
     }
   });
 
+  /**
+   * @swagger
+   * /api/users/search:
+   *   get:
+   *     summary: user Research
+   *     tags: [User]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               email:
+   *                 type: string
+   *               password:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Connexion réussie
+   *       400:
+   *         description: Paramètres invalides
+   *       401:
+   *         description: Identifiants invalides
+   *       500:
+   *         description: Erreur serveur
+   */
+// Recherche d'utilisateurs
+router.get('/search', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+    const { query } = req.query;
+
+    if (!query || typeof query !== 'string') {
+      return res.status(400).json({ message: 'Paramètre de recherche "query" requis' });
+    }
+
+    if (query.trim().length < 2) {
+      return res.status(400).json({ message: 'La recherche doit contenir au moins 2 caractères' });
+    }
+
+    // Recherche les utilisateurs par username qui contient la requête (insensible à la casse)
+    // Exclut l'utilisateur actuel des résultats
+    const users = await User.find({
+      username: { $regex: query, $options: 'i' },
+      _id: { $ne: req.user.userId }
+    })
+    .select('_id username profilePicture bio')
+    .limit(20);
+
+    res.json(users);
+  } catch (error) {
+    console.error('Erreur recherche utilisateurs:', error);
+    res.status(500).json({
+      message: 'Erreur lors de la recherche d\'utilisateurs',
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
 
 
 
@@ -559,6 +620,107 @@ class UsersRoutes {
 
   }
 }
+
+
+// Obtenir les préférences de thème de l'utilisateur
+router.get('/preferences/theme', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+    
+    const user = await User.findById(req.user.userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Retourne l'attribut theme de l'utilisateur ou 'light' par défaut
+    res.json({ theme: user.theme || 'light' });
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'Erreur lors de la récupération des préférences de thème', 
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// Mettre à jour les préférences de thème de l'utilisateur
+router.put('/preferences/theme', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+    
+    const { theme } = req.body;
+    
+    // Vérifier que le thème est valide
+    if (theme !== 'light' && theme !== 'dark') {
+      return res.status(400).json({ message: 'Le thème doit être "light" ou "dark"' });
+    }
+    
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Mettre à jour le thème utilisateur
+    user.theme = theme;
+    await user.save();
+    
+    res.json({ theme: user.theme });
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'Erreur lors de la mise à jour du thème', 
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// Obtenir le profil d'un utilisateur (route générique - DOIT être placée à la fin)
+router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
+  console.log(`DEBUG: Accès à l'endpoint utilisateur (/:id) - id=${req.params.id}`);
+  try {
+    const user = await User.findById(req.params.id)
+      .select('-password')
+      .populate('followers', 'username profilePicture')
+      .populate('following', 'username profilePicture');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Obtenir le profil d'un utilisateur (autre version générique - DOIT être placée à la fin également)
+router.get('/:userId', authMiddleware, async (req: Request, res: Response) => {
+  console.log(`DEBUG: Accès à l'endpoint utilisateur (/:userId) - userId=${req.params.userId}`);
+  try {
+    const user = await User.findById(req.params.userId)
+      .select('-password')
+      .populate('followers', 'username name profilePicture')
+      .populate('following', 'username name profilePicture');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Augmenter le nombre de vues du profil
+    user.profileViews = (user.profileViews || 0) + 1;
+
+    await user.save();
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'Erreur lors de la mise à jour du profil', 
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
 
 new UsersRoutes(); 
 export default router;
