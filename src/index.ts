@@ -10,8 +10,9 @@ import fs from 'fs';
 
 import authRoutes from './routes/auth';
 import postRoutes from './routes/posts';
-import userRoutes from './routes/users';
+import usersRoutes from './routes/users';
 import mediaRoutes from './routes/media';
+import privateMessageRoutes from './routes/privateMessage';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpecs from './swagger';
 
@@ -64,8 +65,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/users', usersRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api/privateMessages', privateMessageRoutes);
 
 // Error handling middleware
 interface ErrorWithMessage extends Error {

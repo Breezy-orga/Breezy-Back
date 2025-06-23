@@ -1,11 +1,11 @@
-import mongoose, { Model, Schema } from "mongoose";
+import mongoose, { Document, Model, Schema } from "mongoose";
 
 // Interface pour le média
-export interface IMedia {
-  filename?: string;
-  base64?: string;
-  contentType?: string;
-  alt?: string;
+export interface IMedia extends Document {
+  filename?: String;
+  base64?: String;
+  contentType?: String;
+  alt?: String;
 }
 
 interface IMediaModel extends Model<IMedia> {
@@ -25,4 +25,4 @@ const mediaSchema = new Schema<IMedia>(
 const Media = mongoose.model<IMedia, IMediaModel>('Media', mediaSchema);
 
 
-export default Media;
+export default mediaSchema;

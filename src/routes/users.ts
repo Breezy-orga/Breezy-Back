@@ -2,22 +2,50 @@ import express, { Request, Response, Router } from 'express';
 import authMiddleware from '../middleware/auth';
 import User from '../models/User';
 import mongoose from 'mongoose';
-import { userService } from '@/services/userService';
+import { userService } from '../services/userService';
+
+const router = express.Router();
+
 
 class UsersRoutes {
-  public router: Router;
-
   constructor() {
-    this.router = express.Router();
     this.routes();
   }
 
   private routes() {
 
+/**
+   * @swagger
+   * /api/users/all:
+   *   get:
+   *     summary: Get all users
+   *     tags: [User]
+   *     responses:
+   *       200:
+   *         description: Users retrieved successfully
 
+   *       500:
+   *         description: Server error
+   */
+   router.get('/all', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching all users');
+      const users = await userService.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Failed to fetch users') {
+        return res.status(500).json({ message: error.message });
+      }
+      if (error instanceof Error && error.message === 'No users found') {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Failed to fetch users', error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+  
   /**
    * @swagger
-   * /api/user/me:
+   * /api/users/me:
    *   get:
    *     summary: get current user profile
    *     tags: [User]
@@ -31,7 +59,7 @@ class UsersRoutes {
    *       500:
    *         description: Erreur serveur
    */
-  this.router.get('/me', authMiddleware, async (req: Request, res: Response) => {
+  router.get('/me', authMiddleware, async (req: Request, res: Response) => {
     try {
       if (!req.user?.userId) {
         return res.status(401).json({ message: 'Utilisateur non authentifié' });
@@ -51,7 +79,7 @@ class UsersRoutes {
 
   /**
    * @swagger
-   * /api/user/me:
+   * /api/users/me:
    *   put:
    *     summary: Update user profile
    *     tags: [User]
@@ -76,7 +104,7 @@ class UsersRoutes {
    *       500:
    *         description: Erreur serveur
    */
-  this.router.put('/me', authMiddleware, async (req: Request, res: Response) => {
+  router.put('/me', authMiddleware, async (req: Request, res: Response) => {
     try {
       if (!req.user?.userId) {
         return res.status(401).json({ message: 'Utilisateur non authentifié' });
@@ -105,7 +133,7 @@ class UsersRoutes {
 
   /**
    * @swagger
-   * /api/user/{id}:
+   * /api/users/{id}:
    *   get:
    *     summary: Get user by ID
    *     tags: [User]
@@ -126,7 +154,7 @@ class UsersRoutes {
    *       500:
    *         description: Erreur serveur
    */
-  this.router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
+  router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
     try {
       const user = await User.findById(req.params.id)
         .select('-password')
@@ -169,7 +197,7 @@ class UsersRoutes {
    *       500:
    *         description: Server error
    */
-  this.router.post('/follow/:id', authMiddleware, async (req: Request, res: Response) => {
+   router.post('/follow/:id', authMiddleware, async (req: Request, res: Response) => {
     try {
       if (!req.user?.userId) {
         return res.status(401).json({ message: 'Utilisateur non authentifié' });
@@ -223,7 +251,7 @@ class UsersRoutes {
    *       500:
    *         description: Server error
    */
-  this.router.post('/unfollow/:id', authMiddleware, async (req: Request, res: Response) => {
+   router.post('/unfollow/:id', authMiddleware, async (req: Request, res: Response) => {
     try {
       if (!req.user?.userId) {
         return res.status(401).json({ message: 'Utilisateur non authentifié' });
@@ -286,7 +314,7 @@ class UsersRoutes {
    *         description: Erreur serveur
    */
   // Obtenir le profil d'un utilisateur
-  this.router.get('/:userId', authMiddleware, async (req: Request, res: Response) => {
+   router.get('/authenticate/:userId', authMiddleware, async (req: Request, res: Response) => {
     try {
       const user = await User.findById(req.params.userId)
         .select('-password')
@@ -335,23 +363,14 @@ class UsersRoutes {
    *       500:
    *         description: Erreur serveur
    */
-  this.router.put('/profile', authMiddleware, async (req: Request, res: Response) => {
+   router.put('/profile', authMiddleware, async (req: Request, res: Response) => {
     try {
       if (!req.user?.userId) {
         return res.status(401).json({ message: 'Utilisateur non authentifié' });
       }
       
-      const { name, bio, profilePicture } = req.body;
-      const user = await User.findById(req.user.userId);
+      const user = await userService.updateProfile(req.user.userId, req.body);      
       
-      if (!user) {
-        return res.status(404).json({ message: 'Utilisateur non trouvé' });
-      }
-
-      if (name && 'name' in user) (user as any).name = name;
-      if (bio) user.bio = bio;
-      if (profilePicture) user.profilePicture = profilePicture;
-
       await user.save();
       res.json(user);
     } catch (error) {
@@ -388,43 +407,17 @@ class UsersRoutes {
    *         description: Erreur serveur
    */
   // Suivre/Ne plus suivre un utilisateur
-  this.router.post('/:userId/follow', authMiddleware, async (req: Request, res: Response) => {
+   router.post('/:userId/follow', authMiddleware, async (req: Request, res: Response) => {
     try {
       if (!req.user?.userId) {
         return res.status(401).json({ message: 'Utilisateur non authentifié' });
       }
-      
-      if (req.params.userId === req.user.userId) {
-        return res.status(400).json({ message: 'Vous ne pouvez pas vous suivre vous-même' });
-      }
-
-      const userToFollow = await User.findById(req.params.userId);
-      const currentUser = await User.findById(req.user.userId);
-
-      if (!userToFollow || !currentUser) {
-        return res.status(404).json({ message: 'Utilisateur non trouvé' });
-      }
-
-      const isFollowing = currentUser.following.some(id => id.toString() === req.params.userId);
-      
-      if (isFollowing) {
-        // Ne plus suivre
-        currentUser.following = currentUser.following.filter(
-          id => id.toString() !== req.params.userId
-        );
-        userToFollow.followers = userToFollow.followers.filter(
-          id => id.toString() !== req.user!.userId
-        );
-      } else {
-        // Suivre
-        currentUser.following.push(new mongoose.Types.ObjectId(req.params.userId));
-        userToFollow.followers.push(new mongoose.Types.ObjectId(req.user!.userId));
-      }
+      const { currentUser, userToFollow } = await userService.followUser(req.user.userId, req.params.userId);
 
       await currentUser.save();
       await userToFollow.save();
 
-      res.json({ following: !isFollowing });
+      res.json({ following: !await userService.isFollowing(req.user.userId, req.params.userId) ? 'followed' : 'unfollowed' });
     } catch (error) {
       res.status(500).json({ 
         message: 'Erreur lors du follow/unfollow', 
@@ -452,25 +445,13 @@ class UsersRoutes {
    *         description: Server error
    */
   // Obtenir les suggestions d'utilisateurs
-  this.router.get('/suggestions', authMiddleware, async (req: Request, res: Response) => {
+   router.get('/suggestions', authMiddleware, async (req: Request, res: Response) => {
     try {
       if (!req.user?.userId) {
         return res.status(401).json({ message: 'Utilisateur non authentifié' });
       }
       
-      const currentUser = await User.findById(req.user.userId);
-      
-      if (!currentUser) {
-        return res.status(404).json({ message: 'Utilisateur non trouvé' });
-      }
-      
-      const users = await User.find({
-        _id: {
-          $nin: [...currentUser.following, req.user.userId]
-        }
-      })
-      .select('username name profilePicture')
-      .limit(5);
+      const users = await userService.getSuggestions(req.user.userId);
 
       res.json(users);
     } catch (error) {
@@ -501,21 +482,18 @@ class UsersRoutes {
    *         description: Server error
    */
   
-  this.router.get('/preferences/theme', authMiddleware, async (req: Request, res: Response) => {
+   router.get('/preferences/theme', authMiddleware, async (req: Request, res: Response) => {
     try {
       if (!req.user?.userId) {
         return res.status(401).json({ message: 'Utilisateur non authentifié' });
       }
-      
-      const user = await User.findById(req.user.userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: 'Utilisateur non trouvé' });
-      }
-      
+      const user = await userService.getTheme(req.user?.userId);
       // Retourne l'attribut theme de l'utilisateur ou 'light' par défaut
       res.json({ theme: user.theme || 'light' });
     } catch (error) {
+      if (error instanceof Error && error.message === 'Utilisateur non trouvé') {
+        return res.status(404).json({ message: error.message });
+      }
       res.status(500).json({ 
         message: 'Erreur lors de la récupération des préférences de thème', 
         error: error instanceof Error ? error.message : String(error)
@@ -552,30 +530,24 @@ class UsersRoutes {
    *         description: Server error
    */
   // Mettre à jour les préférences de thème de l'utilisateur
-  this.router.put('/preferences/theme', authMiddleware, async (req: Request, res: Response) => {
+   router.put('/preferences/theme', authMiddleware, async (req: Request, res: Response) => {
     try {
       if (!req.user?.userId) {
         return res.status(401).json({ message: 'Utilisateur non authentifié' });
       }
-      
       const { theme } = req.body;
+
+      const user = await userService.changeTheme(req.user.userId, theme);
       
-      // Vérifier que le thème est valide
-      if (theme !== 'light' && theme !== 'dark') {
-        return res.status(400).json({ message: 'Le thème doit être "light" ou "dark"' });
-      }
-      
-      const user = await User.findById(req.user.userId);
-      if (!user) {
-        return res.status(404).json({ message: 'Utilisateur non trouvé' });
-      }
-      
-      // Mettre à jour le thème utilisateur
-      user.theme = theme;
-      await user.save();
       
       res.json({ theme: user.theme });
     } catch (error) {
+      if (error instanceof Error && error.message === 'Le thème doit être "light" ou "dark"') {
+        return res.status(400).json({ message: error.message });
+      }
+      if (error instanceof Error && error.message === 'Utilisateur non trouvé') {
+        return res.status(404).json({ message: error.message });
+      }
       res.status(500).json({ 
         message: 'Erreur lors de la mise à jour du thème', 
         error: error instanceof Error ? error.message : String(error)
@@ -585,34 +557,8 @@ class UsersRoutes {
   
 
 
-
-
-  /**
-   * @swagger
-   * /api/users/all:
-   *   get:
-   *     summary: Get all users
-   *     tags: [User]
-   *     responses:
-   *       200:
-   *         description: Users retrieved successfully
-
-   *       500:
-   *         description: Server error
-   */
-  this.router.get('/all', async (req: Request, res: Response) => {
-    try {
-      console.log('Fetching all users');
-      const users = await userService.getAllUsers();
-      res.json(users);
-    } catch (error) {
-      res.status(500).json({ message: 'Failed to fetch users', error: error instanceof Error ? error.message : String(error) });
-    }
-  });
-
-
   }
 }
 
-const usersRoutes = new UsersRoutes();
-export default usersRoutes.router;
+new UsersRoutes(); 
+export default router;

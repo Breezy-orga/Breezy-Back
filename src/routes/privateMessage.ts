@@ -2,11 +2,11 @@ import express, { Request, Response, Router } from 'express';
 import auth from '../middleware/auth';
 import { PrivateMessagesRepository } from '../repositories/privateMessage.repository';
 
-class PrivateMessageRoutes {
-  public router: Router;
+const router = express.Router();
 
+
+class PrivateMessageRoutes {
   constructor() {
-    this.router = express.Router();
     this.routes();
   }
 
@@ -32,9 +32,9 @@ class PrivateMessageRoutes {
      *       500:
      *         description: Erreur lors de la récupération des messages
      */
-    this.router.get('/messagesWith/:userId', auth, async (req: Request, res: Response) => {
+    router.get('/messagesWith/:userId', auth, async (req: Request, res: Response) => {
       try {
-        const receiverId = Number(req.params.userId);
+        const receiverId = req.params.userId;
         const usersMessages = await PrivateMessagesRepository.getMessagesWith(req.user?.userId, receiverId);
         res.json(usersMessages);
       } catch (error: any) {
@@ -72,7 +72,7 @@ class PrivateMessageRoutes {
      *       500:
      *         description: Erreur lors de l'envoi du message
      */
-    this.router.post('/send', auth, async (req: Request, res: Response) => {
+    router.post('/send', auth, async (req: Request, res: Response) => {
       try {
         const { receiverId, content } = req.body;
         if (!receiverId || !content) {
@@ -106,9 +106,9 @@ class PrivateMessageRoutes {
      *       500:
      *         description: Erreur lors de la suppression du message
      */
-    this.router.delete('/delete/:messageId', auth, async (req: Request, res: Response) => {
+    router.delete('/delete/:messageId', auth, async (req: Request, res: Response) => {
       try {
-        const messageId  = Number(req.params.messageId)
+        const messageId  = req.params.messageId
         const result = await PrivateMessagesRepository.deleteMessage(messageId);
         res.json({ message: 'Message deleted successfully', result });
       } catch (error: any) {
@@ -117,5 +117,5 @@ class PrivateMessageRoutes {
     });
   }
 }
-
-export default new PrivateMessageRoutes().router;
+new PrivateMessageRoutes();
+export default router;
