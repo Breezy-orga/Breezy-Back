@@ -408,9 +408,94 @@ router.get('/search', authMiddleware, async (req: Request, res: Response) => {
       });
     }
   });
+;
+
+/**
+   * @swagger
+   * /api/upload-profile-picture:
+   *   post:
+   *     summary: upload profile picture
+   *     tags: [User] 
+   *     responses:
+   *       200:
+   *         description: Profile picture uploaded successfully
+   *       400:
+   *         description: Invalid parameters
+   *       401:
+   *         description: Unauthorized
+   *       500:
+   *         description: Server error
+   */
+// Upload de photo de profil
+router.post('/upload-profile-picture', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+
+    // Vérifier si les données de l'image sont présentes
+    if (!req.body.base64 || !req.body.contentType) {
+      return res.status(400).json({ message: 'Données de l\'image manquantes (base64 ou contentType)' });
+    }
+
+    // Valider le type MIME (uniquement images)
+    const validImageTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'image/svg+xml'
+    ];
+
+    if (!validImageTypes.includes(req.body.contentType.toLowerCase())) {
+      return res.status(400).json({ 
+        message: 'Format d\'image non supporté', 
+        acceptedTypes: validImageTypes
+      });
+    }
+
+    // Limiter la taille de l'image (5MB)
+    const base64Size = (req.body.base64.length * 3) / 4; // approximation en bytes
+    const maxSizeImage = 5 * 1024 * 1024; // 5MB
+    
+    if (base64Size > maxSizeImage) {
+      return res.status(400).json({ 
+        message: `Image trop volumineuse (limite: 5MB)` 
+      });
+    }
+
+    // Générer l'URL de l'image (data URI)
+    let dataUrl = req.body.base64;
+    if (!dataUrl.startsWith('data:')) {
+      dataUrl = `data:${req.body.contentType};base64,${dataUrl}`;
+    }
+
+    // Mettre à jour l'utilisateur avec la nouvelle photo de profil
+    const user = await userService.getUserById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    user.profilePicture = dataUrl;
+    await user.save();
+
+    res.json({
+      message: 'Photo de profil mise à jour avec succès',
+      profilePicture: dataUrl
+    });
+  } catch (error) {
+    console.error('Erreur lors du téléchargement de la photo de profil:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors du téléchargement de la photo de profil', 
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
+});
+
+
+
 }
-
-
+}
 new UsersRoutes(); 
 export default router;
