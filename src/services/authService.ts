@@ -1,4 +1,4 @@
-import { UserRepository } from '../repositories/userRepository';
+import { UserRepository } from '../repositories/user.repository';
 import jwt from 'jsonwebtoken';
 
 export class AuthService {

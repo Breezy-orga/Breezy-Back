@@ -25,4 +25,4 @@ const mediaSchema = new Schema<IMedia>(
 const Media = mongoose.model<IMedia, IMediaModel>('Media', mediaSchema);
 
 
-export default mediaSchema;
+export default Media;

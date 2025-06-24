@@ -10,13 +10,15 @@ import fs from 'fs';
 
 import authRoutes from './routes/auth';
 import postRoutes from './routes/posts';
-import usersRoutes from './routes/users';
+import usersRoutes from './routes/userRoutes/users';
 import mediaRoutes from './routes/media';
+import themeRoutes from './routes/userRoutes/theme';
 import privateMessageRoutes from './routes/privateMessage';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpecs from './swagger';
 import commentRoutes from './routes/comments';
 import notificationRoutes from './routes/notifications';
+import profileRoutes from './routes/userRoutes/profile';
 
 const app: Application = express();
 
@@ -68,11 +70,14 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
-app.use('/api/users', usersRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/privateMessages', privateMessageRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
+//users route 
+app.use('/api/users', usersRoutes);
+app.use('/api/profile', profileRoutes)
+app.use('/api/theme', themeRoutes);
 
 // Error handling middleware
 interface ErrorWithMessage extends Error {

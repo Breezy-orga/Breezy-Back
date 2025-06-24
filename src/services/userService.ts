@@ -1,5 +1,5 @@
 import User from '../models/User';
-import { UserRepository } from '../repositories/userRepository';
+import { UserRepository } from '../repositories/user.repository';
 import mongoose from 'mongoose';
 
 export class userService {
@@ -86,14 +86,14 @@ export class userService {
   static async followUser(currentUserId: string, targetUserId: string) {
     try {
       if (currentUserId === targetUserId) {
-        throw new Error('Vous ne pouvez pas vous suivre vous-même');
+        throw new Error("you can't follow yourself");
       }
 
-      const userToFollow = await User.findById(targetUserId);
-      const currentUser = await User.findById(currentUserId);
+      const userToFollow = await UserRepository.findById(targetUserId);
+      const currentUser = await UserRepository.findById(currentUserId);
 
       if (!userToFollow || !currentUser) {
-        throw new Error('Utilisateur non trouvé');
+        throw new Error('User not found');
       }
 
       const isFollowing = currentUser.following.some(id => id.toString() === targetUserId);
@@ -118,19 +118,48 @@ export class userService {
     }
   }
 
+
+  static async unfollowUser(currentUserId: string, targetUserId: string) {
+    try {
+      if (currentUserId === targetUserId) {
+        throw new Error("you can't unfollow yourself");
+      }
+
+      const userToUnfollow = await UserRepository.findById(targetUserId);
+      const currentUser = await UserRepository.findById(currentUserId);
+
+      if (!userToUnfollow || !currentUser) {
+        throw new Error('User not found');
+      }
+
+      const isFollowing = currentUser.following.some(id => id.toString() === targetUserId);
+
+      if (isFollowing) {
+        // Remove following/follower relationship
+        currentUser.following = currentUser.following.filter(
+          id => id.toString() !== targetUserId
+        );
+        userToUnfollow.followers = userToUnfollow.followers.filter(
+          id => id.toString() !== currentUserId
+        );
+      }
+      // If not following, do nothing
+
+      return { currentUser, userToUnfollow };
+    } catch (error) {
+      console.error('Error unfollowing user', { error });
+      throw new Error('Failed to unfollow user');
+    }
+  }
+
   static async getSuggestions(userId: string) {
     const currentUser = await UserRepository.findById(userId);
     if (!currentUser) {
-      throw new Error('Utilisateur non trouvé');
+      throw new Error('User not found');
     }
 
-    const users = await User.find({
-      _id: {
-        $nin: [...currentUser.following, userId]
-      }
-    })
-    .select('username name profilePicture')
-    .limit(5);
+    const followingIds = currentUser.following.map((id: mongoose.Types.ObjectId) => id.toString());
+    const users = await UserRepository.getSuggestions(userId, followingIds);
     return users;
   }
 
@@ -177,6 +206,24 @@ export class userService {
     } catch (error) {
       console.error('Error changing user theme', { error });
       throw new Error('Failed to change user theme');
+    }
+  }
+  static async getUserByUsernamesUnlessIds(usernames: string[], unlessIds: string[]) {
+    try {
+      const users = await UserRepository.findByUsernamesUnlessIds(usernames, unlessIds);
+      return users;
+    } catch (error) {
+      console.error('Error fetching users by usernames unless IDs', { error });
+      throw new Error('Failed to fetch users');
+    }
+  }
+  static async getUserByIdSelectAndPopulate(userId: string, select: string, populate: string[]) {
+    try {
+      const user = await UserRepository.getUserByIdSelectAndPopulate(userId, select, populate);
+      return user;
+    } catch (error) {
+      console.error('Error fetching user by ID', { error });
+      throw new Error('Failed to fetch user');
     }
   }
 }

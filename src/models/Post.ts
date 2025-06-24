@@ -1,8 +1,7 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 import { IUser } from './User';
 import { IComment } from './Comment';
-import { IMedia } from './media';
-import mediaSchema from './media';
+import Media, { IMedia } from './Media';
 
 
 
@@ -61,7 +60,10 @@ const postSchema = new Schema<IPost>(
       type: Boolean,
       default: false,
     },
-    media: [mediaSchema], // Tableau de médias (photos/vidéos)
+    media: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Media',
+    }], // Tableau de médias (photos/vidéos)
     tags: [{
       type: String,
       trim: true

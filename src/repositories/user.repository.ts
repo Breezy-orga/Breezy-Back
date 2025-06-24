@@ -32,5 +32,31 @@ export const UserRepository = {
   async findAll(): Promise<IUser[]> {
     return User.find({});
   }
-
+  ,
+  async findMentionnedUsers(usernames: string[], userId: string): Promise<IUser[]> {
+    return await User.find({
+      username: { $in: usernames },
+      _id: { $ne: userId } // Exclure l'auteur du post
+    });
+  }
+  ,
+  async findByUsernamesUnlessIds(usernames: string[], unlessIds: string[]): Promise<IUser[]> {
+    return await User.find({
+      username: { $in: usernames },
+      _id: { $nin: unlessIds }
+    });
+  }
+  ,
+  async getSuggestions(userId: string, followingIds: string[]): Promise<IUser[]> {
+    return await User.find({
+      _id: { $nin: [...followingIds, userId] }
+    })
+      .select('username name profilePicture')
+      .limit(5);
+  },
+  async getUserByIdSelectAndPopulate(userId: string, selectFields: string, populateFields: string[]): Promise<IUser | null> {
+    return await User.findById(userId)
+      .select(selectFields)
+      .populate(populateFields);
+  }
 };

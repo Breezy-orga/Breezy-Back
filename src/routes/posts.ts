@@ -4,6 +4,7 @@ import User from '../models/User';
 import Notification from '../models/Notification';
 import authMiddleware from '../middleware/auth';
 import mongoose from 'mongoose';
+import { PostService } from '../services/postService';
 
 const router = express.Router();
 
@@ -30,108 +31,21 @@ router.post('/', authMiddleware, express.json({limit: '50mb'}), async (req: Requ
     if (!req.user?.userId) {
       return res.status(401).json({ message: 'Utilisateur non authentifié' });
     }
-
-    const { content = '', parentPost, media = [], tags = [] } = req.body;
-    
-    // Validation minimale du contenu
-    if (!content && media.length === 0) {
-      return res.status(400).json({ message: 'Le post doit contenir du texte ou au moins un média' });
-    }
-    
-    // Validation des médias
-    let mediaArray = [];
-    if (Array.isArray(media)) {
-      mediaArray = media;
-    } else if (media) {
-      // S'il n'est pas un tableau mais existe, on le met dans un tableau
-      mediaArray = [media];
-    }
-    
-    // Créer le post avec le contenu et éventuellement les médias et tags
-    const post = new Post({
-      content,
-      author: req.user?.userId,
-      parentPost: parentPost || null,
-      isComment: !!parentPost,
-      media: mediaArray,
-      commentsCount: 0,
-      tags: Array.isArray(tags) ? tags : []
-    });
-
-    try {
-      await post.save();
-      await post.populate('author', 'username profilePicture');
-    } catch (saveError) {
-      console.error('Erreur lors de la sauvegarde du post:', saveError);
-      return res.status(500).json({ 
-        message: 'Erreur lors de la sauvegarde du post', 
-        error: saveError instanceof Error ? saveError.message : String(saveError)
-      });
-    }
-    
-    // Si c'est un commentaire, incrémenter le compteur du post parent
-    if (parentPost) {
-      await Post.findByIdAndUpdate(parentPost, { $inc: { commentsCount: 1 } });
-    }
-    
-    // Détecter les mentions (@username) et créer des notifications
-    try {
-      if (content && content.trim().length > 0) {
-        // Trouver tous les @username dans le contenu (expression régulière améliorée)
-        const mentions = content.match(/@([\w.-]+)/g);
-        
-        console.log('Mentions détectées:', mentions);
-        
-        if (mentions && mentions.length > 0) {
-          // Extraire les noms d'utilisateur sans le @
-          const usernames = mentions.map((mention: string) => mention.substring(1));
-          
-          console.log('Usernames extraits:', usernames);
-          
-          // Trouver les utilisateurs correspondants
-          const mentionedUsers = await User.find({
-            username: { $in: usernames },
-            _id: { $ne: req.user?.userId } // Exclure l'auteur du post
-          });
-          
-          console.log('Utilisateurs trouvés:', mentionedUsers.map(u => u.username));
-          
-          if (mentionedUsers.length > 0) {
-            // Créer une notification pour chaque utilisateur mentionné
-            const notificationPromises = mentionedUsers.map(user => {
-              const notification = new Notification({
-                recipient: user._id,
-                sender: req.user?.userId || '',
-                type: 'mention',
-                post: post._id,
-                read: false
-              });
-              
-              return notification.save();
-            });
-            
-            await Promise.all(notificationPromises);
-            console.log(`${notificationPromises.length} notifications créées pour les mentions`);
-          } else {
-            console.log('Aucun utilisateur trouvé pour les mentions:', usernames);
-          }
-        } else {
-          console.log('Aucune mention détectée dans:', content);
-        }
-      } else {
-        console.log('Post sans contenu textuel, pas de vérification de mentions');
-      }
-    } catch (mentionError) {
-      // Ne pas bloquer la création du post si la gestion des mentions échoue
-      console.error('Erreur lors du traitement des mentions:', mentionError);
-      // Continuer l'exécution sans renvoyer d'erreur
-    }
-
+    const post = await PostService.createPost(req.body, req.user.userId);
     res.status(201).json(post);
   } catch (error) {
-    console.error('Erreur création post:', error);
-    res.status(500).json({ 
-      message: 'Erreur lors de la création du post', 
+    if (error instanceof Error && error.message.includes('Utilisateur non authentifié')) {
+      return res.status(401).json({ message: error.message });
+    }
+    if (error instanceof Error && error.message.includes('Le post doit contenir du texte ou au moins un média')) {
+      return res.status(400).json({ message: error.message });
+    }
+    if (error instanceof Error && error.message.includes('Erreur lors de la sauvegarde du post')) {
+      return res.status(500).json({ message: error.message });
+    }
+    console.error('Erreur lors de la création du post:', error);
+    res.status(500).json({
+      message: 'Erreur lors de la création du post',
       error: error instanceof Error ? error.message : String(error)
     });
   }

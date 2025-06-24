@@ -1,12 +1,7 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 import { IUser } from './User';
 import { IPost } from './Post';
-
-// Interface représentant le format des médias
-interface IMedia {
-  base64: string;
-  contentType: string;
-}
+import { IMedia } from './Media';
 
 // Interface représentant un commentaire
 export interface IComment extends Document {
