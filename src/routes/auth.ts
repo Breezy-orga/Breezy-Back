@@ -60,6 +60,7 @@ router.post('/register', async (req: Request, res: Response) => {
 // Connexion
 router.post('/login', async (req: Request, res: Response) => {
   try {
+    console.log('request body:', req.body);
     const { identifier, password } = req.body;
     console.log('Login attempt with identifier:', identifier);
 
@@ -127,6 +128,23 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
       error: error instanceof Error ? error.message : String(error) 
     });
   }
+});
+
+// Vérifier uniquement si le token est valide
+router.get('/verify', authMiddleware, (req: Request, res: Response) => {
+  // Si on arrive ici, c'est que le middleware d'authentification a validé le token
+  // car sinon, il aurait renvoyé une erreur 401
+  console.log('Token vérifié avec succès pour l\'utilisateur:', req.user?.userId);
+  res.status(200).json({ valid: true, userId: req.user?.userId });
+});
+
+// Ajout d'un endpoint OPTIONS pour gérer les requêtes préflight CORS
+router.options('/verify', (req: Request, res: Response) => {
+  // Gestion des en-têtes CORS
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.sendStatus(200);
 });
 
 export default router;

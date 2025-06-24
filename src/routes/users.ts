@@ -29,7 +29,7 @@ router.put('/me', authMiddleware, async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Utilisateur non authentifié' });
     }
     
-    const { username, bio, profilePicture } = req.body;
+    const { username, bio, profilePicture, pseudonym } = req.body;
     const user = await User.findById(req.user.userId);
 
     if (!user) {
@@ -39,11 +39,79 @@ router.put('/me', authMiddleware, async (req: Request, res: Response) => {
     if (username) user.username = username;
     if (bio) user.bio = bio;
     if (profilePicture) user.profilePicture = profilePicture;
+    if (pseudonym) user.pseudonym = pseudonym;
 
     await user.save();
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Upload de photo de profil
+router.post('/upload-profile-picture', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+
+    // Vérifier si les données de l'image sont présentes
+    if (!req.body.base64 || !req.body.contentType) {
+      return res.status(400).json({ message: 'Données de l\'image manquantes (base64 ou contentType)' });
+    }
+
+    // Valider le type MIME (uniquement images)
+    const validImageTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'image/svg+xml'
+    ];
+
+    if (!validImageTypes.includes(req.body.contentType.toLowerCase())) {
+      return res.status(400).json({ 
+        message: 'Format d\'image non supporté', 
+        acceptedTypes: validImageTypes
+      });
+    }
+
+    // Limiter la taille de l'image (5MB)
+    const base64Size = (req.body.base64.length * 3) / 4; // approximation en bytes
+    const maxSizeImage = 5 * 1024 * 1024; // 5MB
+    
+    if (base64Size > maxSizeImage) {
+      return res.status(400).json({ 
+        message: `Image trop volumineuse (limite: 5MB)` 
+      });
+    }
+
+    // Générer l'URL de l'image (data URI)
+    let dataUrl = req.body.base64;
+    if (!dataUrl.startsWith('data:')) {
+      dataUrl = `data:${req.body.contentType};base64,${dataUrl}`;
+    }
+
+    // Mettre à jour l'utilisateur avec la nouvelle photo de profil
+    const user = await User.findById(req.user.userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    user.profilePicture = dataUrl;
+    await user.save();
+
+    res.json({
+      message: 'Photo de profil mise à jour avec succès',
+      profilePicture: dataUrl
+    });
+  } catch (error) {
+    console.error('Erreur lors du téléchargement de la photo de profil:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors du téléchargement de la photo de profil', 
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 });
 
