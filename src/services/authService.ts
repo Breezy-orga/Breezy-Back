@@ -2,12 +2,15 @@ import { UserRepository } from '../repositories/user.repository';
 import jwt from 'jsonwebtoken';
 
 export class AuthService {
-  static async login(email: string, password: string) {
+  static async login(emailOrUserName: string, password: string) {
     try {
-      console.log('Login attempt with email:', email);
-      const user = await UserRepository.findByEmail(email);
+      console.log('Login attempt with email or username:', emailOrUserName);
+      let user = await UserRepository.findByEmail(emailOrUserName);
       if (!user) {
-        throw new Error('User not found');
+        user = await UserRepository.findByUsername(emailOrUserName);
+        if (!user) {
+          throw new Error('User not found');
+        }
       }
 
       const isPasswordValid = await UserRepository.comparePassword(user, password);

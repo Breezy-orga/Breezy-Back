@@ -18,37 +18,27 @@ export class PostService {
             if (!content && media.length === 0) {
                 throw new Error('Le post doit contenir du texte ou au moins un média');
             }
-            
-            // Validation des médias
-            let mediaArray = [];
-            if (Array.isArray(media)) {
-                mediaArray = media;
-            } else if (media) {
-                // S'il n'est pas un tableau mais existe, on le met dans un tableau
-                mediaArray = [media];
-            }
-            
+            console.log("💥💥💥DEBUG: Création du post - media.base64:", media);
             // Créer le post avec le contenu et éventuellement les médias et tags
-            
             try {
                 post = await postRepository.create({
                     content,
                     author: userId,
                     parentPost: parentPostValue || null,
                     isComment: !!parentPostValue,
-                    media: mediaArray,
+                    media: media,
                     commentsCount: 0,
                     tags: Array.isArray(tags) ? tags : []
                 });
 
                 await post.populate('author', 'username profilePicture');
             } catch (saveError) {
-                console.error('Erreur lors de la sauvegarde du post:', saveError);
-                throw new Error('Erreur lors de la sauvegarde du post: ' + (saveError instanceof Error ? saveError.message : String(saveError)));
+                console.error('Erreur lors de la sauvegarde du post:', "500 post"/*error.message*/);
+                throw new Error('Erreur lors de la sauvegarde du post: ' + (saveError instanceof Error ? saveError.message : String("500 post"/*error.message*/)));
             }
         } catch (saveError) {
-            console.error('Erreur lors de la sauvegarde du post:', saveError);
-            throw new Error('Erreur lors de la sauvegarde du post: ' + (saveError instanceof Error ? saveError.message : String(saveError)));
+            console.error('Erreur lors de la sauvegarde du post:', "500 post"/*error.message*/);
+            throw new Error('Erreur lors de la sauvegarde du post: ' + (saveError instanceof Error ? saveError.message : String("500 post"/*error.message*/)));
         }
         // Si c'est un commentaire, incrémenter le compteur du post parent
         if (parentPostValue) {
@@ -100,7 +90,7 @@ export class PostService {
                 console.log('Post sans contenu textuel, pas de vérification de mentions');
             }
         } catch (mentionError) {
-            // Ne pas bloquer la création du post si la gestion des mentions échoue
+            // Ne pas bloquer la st si la gestion des mentions échoue
             console.error('Erreur lors du traitement des mentions:', mentionError);
         }
     }

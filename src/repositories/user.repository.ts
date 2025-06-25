@@ -3,7 +3,8 @@ import User, { IUser } from '../models/User';
 
 export const UserRepository = {
   async findByEmail(email: string): Promise<IUser | null> {
-    return User.findOne({ email });
+    const user = User.findOne({ email });
+    return user;
   },
 
   async createUser(username: string, email: string, password: string): Promise<IUser> {
@@ -38,15 +39,16 @@ export const UserRepository = {
       username: { $in: usernames },
       _id: { $ne: userId } // Exclure l'auteur du post
     });
-  }
-  ,
+  },
+  async findByUsername(username: string): Promise<IUser | null> {
+    return await User.findOne({ username });
+  },
   async findByUsernamesUnlessIds(usernames: string[], unlessIds: string[]): Promise<IUser[]> {
     return await User.find({
       username: { $in: usernames },
       _id: { $nin: unlessIds }
     });
-  }
-  ,
+  },
   async getSuggestions(userId: string, followingIds: string[]): Promise<IUser[]> {
     return await User.find({
       _id: { $nin: [...followingIds, userId] }
@@ -54,7 +56,18 @@ export const UserRepository = {
       .select('username name profilePicture')
       .limit(5);
   },
-  async getUserByIdSelectAndPopulate(userId: string, selectFields: string, populateFields: string[]): Promise<IUser | null> {
+  
+  async getUserByIdSelectAndPopulate(userId: string, selectFields: string= '', populateFields: string[] =[]): Promise<IUser | null> {
+    if(populateFields.length === 0) {
+      const user = await User.findById(userId).select(selectFields);
+      return user ? (user.toObject() as IUser) : null;
+    }
+    if(!selectFields) {
+      return await User.findById(userId).populate(populateFields);
+    }
+    if(selectFields && populateFields.length === 0) {
+      return await User.findById(userId)
+    }
     return await User.findById(userId)
       .select(selectFields)
       .populate(populateFields);

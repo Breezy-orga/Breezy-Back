@@ -14,7 +14,7 @@ export interface IPost extends Document {
   commentsCount: number;
   parentPost?: mongoose.Types.ObjectId;
   isComment: boolean;
-  media: IMedia[];
+  medias: IMedia[];
   tags: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -60,10 +60,12 @@ const postSchema = new Schema<IPost>(
       type: Boolean,
       default: false,
     },
-    media: [{
-      type: Schema.Types.ObjectId,
-      ref: 'Media',
-    }], // Tableau de médias (photos/vidéos)
+    medias: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Media',
+      },
+    ], // Tableau de médias (photos/vidéos)
     tags: [{
       type: String,
       trim: true

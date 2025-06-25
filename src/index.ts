@@ -19,6 +19,7 @@ import swaggerSpecs from './swagger';
 import commentRoutes from './routes/comments';
 import notificationRoutes from './routes/notifications';
 import profileRoutes from './routes/userRoutes/profile';
+import followRoutes from './routes/userRoutes/follow';
 
 const app: Application = express();
 
@@ -76,8 +77,10 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
 //users route 
 app.use('/api/users', usersRoutes);
-app.use('/api/profile', profileRoutes)
+app.use('/api/profile', profileRoutes);
 app.use('/api/theme', themeRoutes);
+app.use('/api/follow', followRoutes);
+
 
 // Error handling middleware
 interface ErrorWithMessage extends Error {

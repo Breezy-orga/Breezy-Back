@@ -88,16 +88,17 @@ export class userService {
       if (currentUserId === targetUserId) {
         throw new Error("you can't follow yourself");
       }
-
+      console.log('Attempting to follow user with ID:', targetUserId, 'by user:', currentUserId);
       const userToFollow = await UserRepository.findById(targetUserId);
       const currentUser = await UserRepository.findById(currentUserId);
-
+      console.log('User to follow:', userToFollow);
+      console.log('Current user:', currentUser);
       if (!userToFollow || !currentUser) {
         throw new Error('User not found');
       }
 
       const isFollowing = currentUser.following.some(id => id.toString() === targetUserId);
-
+      console.log('Is following:', isFollowing, 'Current user following:', currentUser.following, 'Target user followers:', userToFollow.followers);
       if (isFollowing) {
         // Ne plus suivre
         currentUser.following = currentUser.following.filter(
@@ -155,11 +156,14 @@ export class userService {
   static async getSuggestions(userId: string) {
     const currentUser = await UserRepository.findById(userId);
     if (!currentUser) {
+      console.log("TA GROSSE MERE LA PUTE")
       throw new Error('User not found');
     }
 
     const followingIds = currentUser.following.map((id: mongoose.Types.ObjectId) => id.toString());
+
     const users = await UserRepository.getSuggestions(userId, followingIds);
+    console.log('👌👌👌Suggestions fetched successfully', { users });
     return users;
   }
 
@@ -217,12 +221,12 @@ export class userService {
       throw new Error('Failed to fetch users');
     }
   }
-  static async getUserByIdSelectAndPopulate(userId: string, select: string, populate: string[]) {
+  static async getUserByIdSelectAndPopulate(userId: string, select: string = '', populate: string[]= []) {
     try {
       const user = await UserRepository.getUserByIdSelectAndPopulate(userId, select, populate);
       return user;
     } catch (error) {
-      console.error('Error fetching user by ID', { error });
+      console.error('Error fetching user by ID select and populate', { error });
       throw new Error('Failed to fetch user');
     }
   }

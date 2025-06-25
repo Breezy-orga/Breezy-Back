@@ -13,7 +13,7 @@ export const postRepository = {
   },
 
   async create(postData: any) {
-    const post = new Post(postData);
+    const post = await Post.create(postData);
     return post.save();
   },
 

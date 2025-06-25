@@ -22,6 +22,33 @@ const ACCEPTED_VIDEO_TYPES = [
   'video/ogg'
 ];
 
+/**
+   * @swagger
+   * /api/media/upload:
+   *   post:
+   *     summary: Upload a media file (image or video in Base64)
+   *     tags: [Media]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               base64:
+   *                 type: string
+   *                 description: The Base64 encoded media file
+   *               contentType:
+   *                 type: string
+   *                 description: The MIME type of the media file
+   *     responses:
+   *       200:
+   *         description: Media uploaded successfully
+   *       400:
+   *         description: Invalid media type or missing fields
+   *       500:
+   *         description: Server error
+   */
 // Route pour uploader un média (image ou vidéo en Base64)
 router.post('/upload', authMiddleware, express.json({limit: '16mb'}), async (req: Request, res: Response) => {
   try {
@@ -29,7 +56,7 @@ router.post('/upload', authMiddleware, express.json({limit: '16mb'}), async (req
     MediaService.uploadMedia(body, ACCEPTED_IMAGE_TYPES, ACCEPTED_VIDEO_TYPES);
     // Génération du nom de fichier unique
     const filename = `${Date.now()}-${uuidv4().substring(0, 8)}`;
-    
+    console.log(`💥💥💥DEBUG: Upload de média - filename=${filename}, contentType=${req.body.contentType}`);
     // Retourne les informations nécessaires pour stocker dans un post
     res.json({
       filename,
@@ -46,8 +73,25 @@ router.post('/upload', authMiddleware, express.json({limit: '16mb'}), async (req
   }
 });
 
+
+/**
+   * @swagger
+   * /api/media/{postId}/{mediaIndex}:
+   *   put:
+   *     summary: mark a media item as read
+   *     tags: [User]
+   *     responses:
+   *       200:
+   *         description: Media item marked as read successfully
+   *       401:
+   *         description: Unauthorized
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Server error
+   */
 // Route pour récupérer un média par l'ID du post et l'index du média
-router.get('/post/:postId/media/:mediaIndex', async (req: Request, res: Response) => {
+router.get('/:postId/:mediaIndex', async (req: Request, res: Response) => {
   console.log(`DEBUG: Accès à l'endpoint média - postId=${req.params.postId}, mediaIndex=${req.params.mediaIndex}`);
   try {
     const postId = req.params.postId;
@@ -75,7 +119,23 @@ router.get('/post/:postId/media/:mediaIndex', async (req: Request, res: Response
   }
 });
 
-// Route pour récupérer une image par son nom de fichier (ancienne méthode)
+
+/**
+   * @swagger
+   * /api/media/{filename}:
+   *   put:
+   *     summary: mark a media item as read
+   *     tags: [User]
+   *     responses:
+   *       200:
+   *         description: Media item marked as read successfully
+   *       401:
+   *         description: Unauthorized
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Server error
+   */
 router.get('/:filename', async (req: Request, res: Response) => {
   try {
     // Cette route sera utilisée par le frontend pour obtenir les URLs des images
@@ -92,6 +152,23 @@ router.get('/:filename', async (req: Request, res: Response) => {
   }
 });
 
+
+/**
+   * @swagger
+   * /api/media/test/upload:
+   *   put:
+   *     summary: mark a media item as read
+   *     tags: [User]
+   *     responses:
+   *       200:
+   *         description: Media item marked as read successfully
+   *       401:
+   *         description: Unauthorized
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Server error
+   */
 // Route de debug pour tester l'upload d'image
 router.get('/test/upload', (req: Request, res: Response) => {
   res.send(`

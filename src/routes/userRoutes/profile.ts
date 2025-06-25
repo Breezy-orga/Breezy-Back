@@ -2,7 +2,7 @@ import express from "express";
 import authMiddleware from "../../middleware/auth";
 import User from "../../models/User";
 import { Request, Response } from "express";
-import { userService } from "@/services/userService";
+import { userService } from "../../services/userService";
 
 
 const router = express.Router();
@@ -36,7 +36,7 @@ private routes() {
         return res.status(401).json({ message: 'Utilisateur non authentifié' });
       }
 
-      const user = await User.findById(req.user.userId).select('-password');
+      const user = await userService.getUserByIdSelectAndPopulate(req.user.userId, '-password', ['posts', 'comments', 'likes']);
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }

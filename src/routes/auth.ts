@@ -94,7 +94,7 @@ router.post('/register', async (req: Request, res: Response) => {
 // Connexion
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const user = await AuthService.login(req.body.email, req.body.password);
+    const user = await AuthService.login(req.body.identifier, req.body.password);
     res.json({ user, token: AuthService.generateToken(user) });
 
   } catch (error) {

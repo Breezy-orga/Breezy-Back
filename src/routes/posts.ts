@@ -41,7 +41,7 @@ router.post('/', authMiddleware, express.json({limit: '50mb'}), async (req: Requ
       return res.status(400).json({ message: error.message });
     }
     if (error instanceof Error && error.message.includes('Erreur lors de la sauvegarde du post')) {
-      return res.status(500).json({ message: error.message });
+      return res.status(500).json({ message: "500 post"/*error.message*/ });
     }
     console.error('Erreur lors de la création du post:', error);
     res.status(500).json({
@@ -129,8 +129,8 @@ router.get('/feed', authMiddleware, async (req: Request, res: Response) => {
     
     // Vérifier si les posts ont des médias
     posts.forEach((post, index) => {
-      if (post.media && post.media.length > 0) {
-        console.log(`Post ${index}: ${post.media.length} médias trouvés`);
+      if (post.medias && post.medias.length > 0) {
+      console.log(`Post ${index}: ${post.medias.length} médias trouvés`);
       }
     });
 
