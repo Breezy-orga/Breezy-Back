@@ -6,7 +6,7 @@ export interface IUser extends Document {
   username: string;
   email: string;
   password: string;
-  pseudonym: string;
+  role: string;
   bio: string;
   profilePicture: string;
   theme: 'light' | 'dark';
@@ -15,6 +15,7 @@ export interface IUser extends Document {
   following: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
+  comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 // Interface pour le modèle avec les méthodes statiques éventuelles
@@ -39,16 +40,15 @@ const userSchema = new Schema<IUser>(
       trim: true,
       lowercase: true,
     },
-    pseudonym: {
-      type: String,
-      default: '',
-      trim: true,
-      maxlength: 50,
-    },
     password: {
       type: String,
       required: true,
       minlength: 6,
+    },
+    role: {
+    type: String,
+    enum: ['user', 'moderator', 'admin'],
+    default: 'user'
     },
     bio: {
       type: String,
@@ -89,6 +89,24 @@ const userSchema = new Schema<IUser>(
     timestamps: true,
   }
 );
+
+// Hash password before saving
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
+// Method to compare password
+userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 const User = mongoose.model<IUser, IUserModel>('User', userSchema);
 

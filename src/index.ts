@@ -7,6 +7,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import https from 'https';
 import fs from 'fs';
+import cookieParser from 'cookie-parser';
 
 import authRoutes from './routes/auth';
 import postRoutes from './routes/posts';
@@ -64,6 +65,7 @@ if (NODE_ENV === 'development') {
 // Augmentation de la limite de taille des requêtes JSON à 16MB pour supporter les images en base64
 app.use(express.json({ limit: '16mb' }));
 app.use(morgan('dev'));
+app.use(cookieParser());
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 

@@ -11,7 +11,9 @@ declare module 'express' {
 const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   try {
     // Récupérer le token du header
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const token =
+      req.cookies?.token ||
+      req.header('Authorization')?.replace('Bearer ', '');
     
     if (!token) {
       res.status(401).json({ message: 'Accès non autorisé' });

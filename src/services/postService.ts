@@ -93,5 +93,6 @@ export class PostService {
             // Ne pas bloquer la st si la gestion des mentions échoue
             console.error('Erreur lors du traitement des mentions:', mentionError);
         }
+        return post;
     }
 }
