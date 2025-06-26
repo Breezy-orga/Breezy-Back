@@ -38,7 +38,7 @@ router.post('/register', async (req: Request, res: Response) => {
       { expiresIn: '24h' }
     );
 
-    res.status(201).json({
+    const responseData = {
       token,
       user: {
         id: user._id,
@@ -46,7 +46,15 @@ router.post('/register', async (req: Request, res: Response) => {
         email: user.email,
         profilePicture: user.profilePicture
       }
+    };
+
+    console.log('Réponse d\'inscription réussie:', {
+      userId: user._id,
+      username: user.username,
+      tokenLength: token.length
     });
+
+    res.status(201).json(responseData);
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ 
@@ -55,6 +63,17 @@ router.post('/register', async (req: Request, res: Response) => {
       stack: error instanceof Error ? error.stack : undefined
     });
   }
+});
+
+// Gestion des requêtes OPTIONS pour CORS
+router.options('/login', (req: Request, res: Response) => {
+  const origin = req.headers.origin || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Vary', 'Origin');
+  res.status(204).send();
 });
 
 // Connexion
@@ -96,15 +115,37 @@ router.post('/login', async (req: Request, res: Response) => {
     console.log('Token generated successfully for user:', identifier);
 
      // Définir le cookie sécurisé
-    res.cookie('token', token, {
+    // Définir l'origine spécifique au lieu de * quand on utilise credentials
+    const origin = req.headers.origin || '*';
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+    const isSecure = isProduction;
+    const isLocalDevelopment = !isProduction && isLocalhost;
+    const cookieOptions: {
+      httpOnly: boolean;
+      secure: boolean;
+      sameSite: 'lax' | 'none' | 'strict' | boolean;
+      maxAge: number;
+      path: string;
+      domain?: string | undefined;
+    } = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isSecure,
+      sameSite: isLocalDevelopment ? 'lax' : 'lax',
       maxAge: 24 * 60 * 60 * 1000,
-      path: '/'
+      path: '/',
+      domain: isProduction ? '.breezy-app.com' : undefined
+    };
+    if (isLocalDevelopment) {
+      console.log('Mode développement: configuration des cookies allégée');
+    }
+    res.cookie('token', token, cookieOptions);
+    console.log('Réponse de connexion réussie:', {
+      userId: user._id,
+      username: user.username,
+      tokenLength: token.length
     });
-
-    res.json({
+    return res.json({
       token,
       user: {
         id: user._id,
@@ -113,6 +154,7 @@ router.post('/login', async (req: Request, res: Response) => {
         profilePicture: user.profilePicture
       }
     });
+    // Aucun code après ce return.
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ 
@@ -134,6 +176,37 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ 
       message: 'Erreur serveur', 
+      error: error instanceof Error ? error.message : String(error) 
+    });
+  }
+});
+
+// Déconnexion
+router.post('/logout', (req: Request, res: Response) => {
+  try {
+    const origin = req.headers.origin || '*';
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // Supprimer le cookie d'authentification
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      path: '/',
+      domain: isProduction ? '.breezy-app.com' : undefined
+    });
+    
+    // En-têtes CORS
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Vary', 'Origin');
+    
+    res.json({ success: true, message: 'Déconnexion réussie' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur lors de la déconnexion', 
       error: error instanceof Error ? error.message : String(error) 
     });
   }
