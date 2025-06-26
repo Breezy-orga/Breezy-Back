@@ -13,21 +13,21 @@ export const PrivateMessagesRepository = {
     return message;
   },
 
-  async getMessagesWith(sender: string, receiver: string): Promise<IPrivateMessage[]> {
+  async getMessagesWith(userId1: string, userId2: string): Promise<IPrivateMessage[]> {
     try {
       const messages = await PrivateMessage.find({
         $or: [
-          { sender: sender, receiver: receiver },
-          { sender: receiver, receiver: sender }
+          { senderId: userId1, receiverId: userId2 },
+          { senderId: userId2, receiverId: userId1 }
         ]
       })
-      .populate('sender', 'username profilePicture')
-      .populate('receiver', 'username profilePicture')
-      .sort({ createdAt: -1 });
-      return messages;
+        .populate('senderId', 'username profilePicture')
+        .populate('receiverId', 'username profilePicture')
+        .sort({ timestamp: 1 }) // tri chronologique (le plus logique)
+      return messages
     } catch (error) {
-      console.error('Error fetching private messages', { error, sender, receiver });
-      throw new Error('Could not fetch private messages');
+      console.error('Error fetching private messages', { error, userId1, userId2 })
+      throw new Error('Could not fetch private messages')
     }
   },
 

@@ -58,7 +58,7 @@ importers:
         specifier: ^2.4.6
         version: 2.4.6
       '@types/cookie-parser':
-        specifier: ^1.4.3
+        specifier: ^1.4.9
         version: 1.4.9(@types/express@4.17.23)
       '@types/cors':
         specifier: ^2.8.17
