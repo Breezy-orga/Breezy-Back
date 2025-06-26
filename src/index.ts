@@ -21,6 +21,8 @@ import commentRoutes from './routes/comments';
 import notificationRoutes from './routes/notifications';
 import profileRoutes from './routes/userRoutes/profile';
 import followRoutes from './routes/userRoutes/follow';
+import roleRoutes from './routes/userRoutes/role';
+
 
 const app: Application = express();
 
@@ -136,6 +138,8 @@ app.use('/api/users', usersRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/theme', themeRoutes);
 app.use('/api/follow', followRoutes);
+app.use('/api/roles', roleRoutes);
+
 
 
 // Error handling middleware
