@@ -1,9 +1,11 @@
 import express, { Request, Response, Router } from 'express';
 import auth from '../middleware/auth';
 import { PrivateMessagesRepository } from '../repositories/privateMessage.repository';
+import User from '../models/User';
+import PrivateMessage, { IPrivateMessage } from '../models/PrivateMessages';
+
 
 const router = express.Router();
-
 
 class PrivateMessageRoutes {
   constructor() {
@@ -57,13 +59,10 @@ class PrivateMessageRoutes {
      *             properties:
      *               senderId:
      *                 type: number
-     *                 description: ID de l'utilisateur expéditeur
      *               receiverId:
      *                 type: number
-     *                 description: ID de l'utilisateur destinataire
      *               content:
      *                 type: string
-     *                 description: Contenu du message
      *     responses:
      *       201:
      *         description: Message envoyé avec succès
@@ -72,7 +71,7 @@ class PrivateMessageRoutes {
      *       500:
      *         description: Erreur lors de l'envoi du message
      */
-    router.post('/send', auth, async (req: Request, res: Response) => {
+    router.post('/', auth, async (req: Request, res: Response) => {
       try {
         const { receiverId, content } = req.body;
         if (!receiverId || !content) {
@@ -88,34 +87,88 @@ class PrivateMessageRoutes {
     /**
      * @swagger
      * /api/privateMessages/delete/{messageId}:
-     *   parameters:
-     *     - in: path
-     *       name: messageId
-     *       required: true
-     *       description: ID du message à supprimer
-     *       schema:
-     *         type: string
-     *   delete:
-     *     summary: Supprimer un message privé
-     *     tags: [PrivateMessages]
-     *     responses:
-     *       201:
-     *         description: Message supprimé avec succès
-     *       400:
-     *         description: Mauvaise requête, paramètres manquants
-     *       500:
-     *         description: Erreur lors de la suppression du message
      */
     router.delete('/delete/:messageId', auth, async (req: Request, res: Response) => {
       try {
-        const messageId  = req.params.messageId
+        const messageId = req.params.messageId;
         const result = await PrivateMessagesRepository.deleteMessage(messageId);
         res.json({ message: 'Message deleted successfully', result });
       } catch (error: any) {
         res.status(500).json({ message: 'Erreur lors de la suppression du message', error: error.message });
       }
     });
+
+    /**
+     * @swagger
+     * /api/privateMessages/conversations:
+     *   get:
+     *     summary: Récupérer la liste des conversations de l'utilisateur courant
+     *     tags: [PrivateMessages]
+     *     responses:
+     *       200:
+     *         description: Liste des conversations
+     *       401:
+     *         description: Non authentifié
+     *       500:
+     *         description: Erreur serveur
+     */
+    router.get('/conversations', auth, async (req: Request, res: Response) => {
+      try {
+        const me = req.user!.userId;
+
+        const all = await PrivateMessage.find({
+          $or: [{ senderId: me }, { receiverId: me }]
+        }).exec();
+
+        const grouped: Record<string, IPrivateMessage[]> = {};
+        all.forEach((msg: IPrivateMessage) => {
+          const other =
+            msg.senderId.toString() === me
+              ? msg.receiverId.toString()
+              : msg.senderId.toString();
+          if (!grouped[other]) grouped[other] = [];
+          grouped[other].push(msg);
+        });
+
+        const convs = await Promise.all(
+          Object.entries(grouped).map(async ([userId, msgs]) => {
+            // tri décroissant sur timestamp
+            msgs.sort((a: IPrivateMessage, b: IPrivateMessage) =>
+              b.timestamp.getTime() - a.timestamp.getTime()
+            );
+            const last = msgs[0];
+
+            // Charger le profil de l'autre utilisateur
+            const user = await User.findById(userId)
+              .select('_id username profilePicture')
+              .lean();
+            if (!user) return null;
+
+            return {
+              _id: userId,
+              withUser: {
+                _id: user._id!,
+                username: user.username,
+                avatar: user.profilePicture
+              },
+              lastMessage: {
+                text: last.content,
+                createdAt: last.timestamp
+              }
+            };
+          })
+        );
+
+        res.json(convs.filter((c): c is NonNullable<typeof c> => Boolean(c)));
+      } catch (error: any) {
+        //console.error('PrivateMessages /conversations error:', error);
+        res
+          .status(500)
+          .json({ message: 'Erreur lors de la récupération des conversations', error: error.message });
+      }
+    });
   }
 }
+
 new PrivateMessageRoutes();
 export default router;
