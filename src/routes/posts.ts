@@ -234,16 +234,37 @@ router.get('/search', authMiddleware, async (req: Request, res: Response) => {
 // Obtenir les posts d'un utilisateur
 router.get('/user/:userId', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const posts = await Post.find({
-      author: req.params.userId,
+    console.log(`Récupération des posts pour l'utilisateur: ${req.params.userId}`);
+    
+    // Gestion spéciale de "me" pour référer à l'utilisateur authentifié
+    let authorId = req.params.userId;
+    if (authorId === 'me' && req.user?.userId) {
+      authorId = req.user.userId;
+      console.log(`"me" résolu vers l'ID: ${authorId}`);
+    }
+    
+    // Vérifier que l'ID est au bon format
+    if (authorId !== 'me' && !mongoose.isValidObjectId(authorId)) {
+      console.error(`ID utilisateur invalide: ${authorId}`);
+      return res.status(400).json({ message: 'ID utilisateur invalide' });
+    }
+    
+    const query = {
+      author: authorId,
       isComment: false
-    })
-    .populate('author', 'username profilePicture')
-    .populate('likes', 'username')
-    .sort({ createdAt: -1 });
+    };
+    
+    console.log('Exécution de la requête:', JSON.stringify(query));
+    
+    const posts = await Post.find(query)
+      .populate('author', 'username profilePicture')
+      .populate('likes', 'username')
+      .sort({ createdAt: -1 });
 
+    console.log(`${posts.length} posts trouvés pour l'utilisateur ${authorId}`);
     res.json(posts);
   } catch (error) {
+    console.error('Erreur détaillée lors de la récupération des posts:', error);
     res.status(500).json({ 
       message: 'Erreur lors de la récupération des posts', 
       error: error instanceof Error ? error.message : String(error)
@@ -366,7 +387,53 @@ router.delete('/:postId', authMiddleware, async (req: Request, res: Response) =>
   }
 });
 
-// Ajouter la route pour obtenir un post ou commentaire par son id
+// Modifier un post
+router.put('/:postId', authMiddleware, express.json({limit: '50mb'}), async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+
+    const { content, media = [], tags = [] } = req.body;
+    const postId = req.params.postId;
+
+    // Vérification que le post existe
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Post introuvable' });
+    }
+
+    // Vérification que l'utilisateur est l'auteur du post
+    if (post.author.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Vous n\'\u00eates pas autorisé à modifier ce post' });
+    }
+
+    // Validation minimale du contenu
+    if (!content && media.length === 0) {
+      return res.status(400).json({ message: 'Le post doit contenir du texte ou au moins un média' });
+    }
+
+    // Mise à jour du post
+    post.content = content;
+    post.media = media;
+    post.tags = tags;
+    post.updatedAt = new Date();
+
+    await post.save();
+    await post.populate('author', 'username profilePicture');
+
+    console.log(`Post ${postId} modifié avec succès par l'utilisateur ${req.user.userId}`);
+    res.json(post);
+  } catch (error) {
+    console.error('Erreur lors de la modification du post:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors de la modification du post', 
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// Obtenir un post ou commentaire par son id
 router.get('/:postId', authMiddleware, async (req: Request, res: Response) => {
   try {
     const post = await Post.findById(req.params.postId)

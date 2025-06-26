@@ -5,6 +5,48 @@ import mongoose from 'mongoose';
 
 const router = express.Router();
 
+// Récupérer les abonnés d'un utilisateur
+router.get('/:userId/followers', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const user = await User.findById(req.params.userId)
+      .select('followers')
+      .populate('followers', 'username profilePicture pseudonym');
+
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+
+    res.json({ followers: user.followers });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des abonnés:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors de la récupération des abonnés',
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// Récupérer les abonnements d'un utilisateur
+router.get('/:userId/following', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const user = await User.findById(req.params.userId)
+      .select('following')
+      .populate('following', 'username profilePicture pseudonym');
+
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+
+    res.json({ following: user.following });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des abonnements:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors de la récupération des abonnements',
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
 // Get current user profile
 router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -29,7 +71,7 @@ router.put('/me', authMiddleware, async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Utilisateur non authentifié' });
     }
     
-    const { username, bio, profilePicture } = req.body;
+    const { username, bio, profilePicture, pseudonym } = req.body;
     const user = await User.findById(req.user.userId);
 
     if (!user) {
@@ -39,11 +81,46 @@ router.put('/me', authMiddleware, async (req: Request, res: Response) => {
     if (username) user.username = username;
     if (bio) user.bio = bio;
     if (profilePicture) user.profilePicture = profilePicture;
+    if (pseudonym) user.pseudonym = pseudonym;
 
     await user.save();
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Upload profile picture
+router.post('/upload-profile-picture', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+    
+    const { profilePicture } = req.body;
+    if (!profilePicture) {
+      return res.status(400).json({ message: 'Profile picture is required' });
+    }
+    
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Update profile picture with base64 string
+    user.profilePicture = profilePicture;
+    await user.save();
+    
+    res.json({
+      success: true,
+      profilePicture: user.profilePicture
+    });
+  } catch (error) {
+    console.error('Error uploading profile picture:', error);
+    res.status(500).json({
+      message: 'Server error while uploading profile picture',
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 });
 
@@ -83,69 +160,8 @@ router.get('/search', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-// Follow user
-router.post('/follow/:id', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    if (!req.user?.userId) {
-      return res.status(401).json({ message: 'Utilisateur non authentifié' });
-    }
-    
-    const userToFollow = await User.findById(req.params.id);
-    const currentUser = await User.findById(req.user.userId);
-
-    if (!userToFollow || !currentUser) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    if (currentUser.following.some(id => id.toString() === req.params.id)) {
-      return res.status(400).json({ message: 'Already following this user' });
-    }
-
-    currentUser.following.push(new mongoose.Types.ObjectId(req.params.id));
-    userToFollow.followers.push(new mongoose.Types.ObjectId(req.user.userId));
-
-    await currentUser.save();
-    await userToFollow.save();
-
-    res.json({ message: 'User followed successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
-  }
-});
-
-// Unfollow user
-router.post('/unfollow/:id', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    if (!req.user?.userId) {
-      return res.status(401).json({ message: 'Utilisateur non authentifié' });
-    }
-    
-    const userToUnfollow = await User.findById(req.params.id);
-    const currentUser = await User.findById(req.user.userId);
-
-    if (!userToUnfollow || !currentUser) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    if (!currentUser.following.some(id => id.toString() === req.params.id)) {
-      return res.status(400).json({ message: 'Not following this user' });
-    }
-
-    currentUser.following = currentUser.following.filter(
-      id => id.toString() !== req.params.id
-    );
-    userToUnfollow.followers = userToUnfollow.followers.filter(
-      id => id.toString() !== req.user!.userId
-    );
-
-    await currentUser.save();
-    await userToUnfollow.save();
-
-    res.json({ message: 'User unfollowed successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
-  }
-});
+// Suivre/Ne plus suivre un utilisateur (toggle)
+// Utilise la route /:userId/follow (POST) plus bas
 
 // Obtenir le profil d'un utilisateur
 router.get('/:userId', authMiddleware, async (req: Request, res: Response) => {
@@ -348,7 +364,10 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
 
 // Obtenir le profil d'un utilisateur (autre version générique - DOIT être placée à la fin également)
 router.get('/:userId', authMiddleware, async (req: Request, res: Response) => {
-  console.log(`DEBUG: Accès à l'endpoint utilisateur (/:userId) - userId=${req.params.userId}`);
+  console.log(`[DEBUG][${new Date().toISOString()}] Accès à l'endpoint utilisateur (/:userId) - userId=${req.params.userId}`);
+  console.log('[DEBUG] Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('[DEBUG] User authentifié:', req.user);
+  
   try {
     const user = await User.findById(req.params.userId)
       .select('-password')
@@ -356,8 +375,13 @@ router.get('/:userId', authMiddleware, async (req: Request, res: Response) => {
       .populate('following', 'username name profilePicture');
 
     if (!user) {
+      console.log(`[DEBUG] Utilisateur non trouvé: ${req.params.userId}`);
       return res.status(404).json({ message: 'User not found' });
     }
+    
+    console.log(`[DEBUG] Utilisateur trouvé: ${user.username} (${user._id})`);
+    console.log(`[DEBUG] Nombre de followers: ${user.followers?.length || 0}`);
+    console.log(`[DEBUG] Nombre de following: ${user.following?.length || 0}`);
 
     // Augmenter le nombre de vues du profil
     user.profileViews = (user.profileViews || 0) + 1;

@@ -8,6 +8,7 @@ export interface IUser extends Document {
   password: string;
   bio: string;
   profilePicture: string;
+  pseudonym: string;
   theme: 'light' | 'dark';
   profileViews: number;
   followers: mongoose.Types.ObjectId[];
@@ -52,6 +53,11 @@ const userSchema = new Schema<IUser>(
     profilePicture: {
       type: String,
       default: '/default-avatar.png',
+    },
+    pseudonym: {
+      type: String,
+      trim: true,
+      default: '',
     },
     theme: {
       type: String,
