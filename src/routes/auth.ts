@@ -86,14 +86,14 @@ router.post('/login', async (req: Request, res: Response) => {
     // Trouver l'utilisateur par email ou username
     const user = await User.findOne({
       $or: [
-        { email: loginIdentifier },
-        { username: loginIdentifier }
+        { email: identifier },
+        { username: identifier }
       ]
     });
     console.log('User found:', user ? 'Yes' : 'No');
     
     if (!user) {
-      console.log('No user found with identifier:', loginIdentifier);
+      console.log('No user found with identifier:', identifier);
       return res.status(401).json({ message: 'Identifiant ou mot de passe incorrect' });
     }
 
@@ -115,39 +115,12 @@ router.post('/login', async (req: Request, res: Response) => {
     console.log('Token generated successfully for user:', identifier);
 
      // Définir le cookie sécurisé
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000,
-      path: '/'
-    });
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        profilePicture: user.profilePicture
-      }
-    };
-    
-    console.log('Réponse de connexion réussie:', {
-      userId: user._id,
-      username: user.username,
-      tokenLength: token.length
-    });
-
     // Définir l'origine spécifique au lieu de * quand on utilise credentials
     const origin = req.headers.origin || '*';
     const isProduction = process.env.NODE_ENV === 'production';
     const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
-    
-    // Configuration du cookie
-    const isSecure = isProduction; // Seulement HTTPS en production
+    const isSecure = isProduction;
     const isLocalDevelopment = !isProduction && isLocalhost;
-    
     const cookieOptions: {
       httpOnly: boolean;
       secure: boolean;
@@ -156,59 +129,32 @@ router.post('/login', async (req: Request, res: Response) => {
       path: string;
       domain?: string | undefined;
     } = {
-      httpOnly: true, // Empêche l'accès au cookie via JavaScript
-      secure: isSecure, // HTTPS requis uniquement en production
+      httpOnly: true,
+      secure: isSecure,
       sameSite: isLocalDevelopment ? 'lax' : 'lax',
-      maxAge: 24 * 60 * 60 * 1000, // 24h
-      path: '/', // Accessible sur tout le domaine
-      // En développement, on ne définit pas le domaine pour permettre les cookies cross-origin
+      maxAge: 24 * 60 * 60 * 1000,
+      path: '/',
       domain: isProduction ? '.breezy-app.com' : undefined
     };
-    
-    // En développement, on peut être moins strict avec les cookies
     if (isLocalDevelopment) {
       console.log('Mode développement: configuration des cookies allégée');
-      // En développement, on peut désactiver secure pour le support HTTP
-      cookieOptions.secure = false;
-      // On utilise 'lax' pour sameSite en développement
-      cookieOptions.sameSite = 'lax';
-      // On s'assure que le domaine n'est pas défini pour le développement local
-      delete cookieOptions.domain;
     }
-    
-    // Journalisation des options du cookie (sans le token)
-    console.log('Cookie options:', {
-      ...cookieOptions,
-      value: '[REDACTED]',
-      domain: cookieOptions.domain || 'localhost (default)'
-    });
-    
-    // Définir le cookie HTTP-Only sécurisé
     res.cookie('token', token, cookieOptions);
-    
-    // Ajouter un en-tête supplémentaire pour les clients qui ne supportent pas les cookies HTTP-Only
-    // (à utiliser uniquement si nécessaire et avec précaution)
-    if (!isProduction) {
-      res.setHeader('X-Auth-Token', token);
-    }
-    
-    // En-têtes CORS
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,authorization');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Vary', 'Origin');
-    
-    // Pour le débogage
-    console.log('Response headers:', {
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Credentials': 'true',
-      'Vary': 'Origin'
+    console.log('Réponse de connexion réussie:', {
+      userId: user._id,
+      username: user.username,
+      tokenLength: token.length
     });
-    
-    // Retourner les données utilisateur (sans le token, qui est déjà dans le cookie)
-    const { token: _, ...userData } = responseData;
-    res.json(userData);
+    return res.json({
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        profilePicture: user.profilePicture
+      }
+    });
+    // Aucun code après ce return.
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ 

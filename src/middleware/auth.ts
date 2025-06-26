@@ -26,10 +26,10 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction): void =
     }
 
     // Vérifier et décoder le token
-    const decoded = verifyToken(token);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
     
     // S'assurer que le token contient un ID utilisateur
-    if (!decoded.userId) {
+    if (!(decoded as any).userId) {
       console.error('Token invalide: userId manquant');
       res.status(401).json({ 
         success: false,
@@ -38,11 +38,7 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction): void =
       });
       return;
     }
-
-    // Vérifier le token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
     req.user = decoded as jwt.JwtPayload;
-
     next();
   } catch (error) {
     console.error('Erreur de vérification du token:', error);
