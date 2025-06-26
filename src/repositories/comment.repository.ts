@@ -26,5 +26,9 @@ export const commentRepository = {
             throw new Error('Comment not found');
         }
         return comment;
+    },
+    deleteMany: async (filter: any) => {
+        const result = await Comment.deleteMany(filter);
+        return result;
     }
 }

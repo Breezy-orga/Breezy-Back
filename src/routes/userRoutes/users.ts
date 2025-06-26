@@ -72,6 +72,43 @@ class UsersRoutes {
   }
 });
 
+  // Delete a User (admin-only)
+  router.delete('/:userId', authMiddleware, async (req: Request, res: Response) => {
+    try {
+      if (!req.user?.userId) {
+        return res.status(401).json({ message: 'Utilisateur non authentifié' });
+      }
+      // On ne peut pas supprimer un admin ou un modérateur
+      const userToDelete = await User.findById(req.params.userId);
+      if (!userToDelete) {
+        return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      }
+      if (userToDelete.role === 'admin' || userToDelete.role === 'moderator') {
+        return res.status(403).json({ message: 'Impossible de supprimer un compte admin ou modérateur.' });
+      }
+
+      // Seul un utilisateur peut supprimer son propre compte, ou un admin peut supprimer un autre (non admin/modo)
+      if (req.user.userId !== req.params.userId) {
+        const currentUser = await User.findById(req.user.userId);
+        if (!currentUser || currentUser.role !== 'admin') {
+          return res.status(403).json({ message: 'Accès refusé : admin requis pour supprimer un autre compte.' });
+        }
+      }
+
+      await userService.deleteUser(req.params.userId );
+
+      if (req.user.userId === req.params.userId) {
+        res.clearCookie('token', { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/' });
+      }
+      res.json({ message: 'Utilisateur supprimé avec succès' });
+    } catch (error) {
+      res.status(500).json({
+        message: 'Erreur lors de la suppression de l\'utilisateur',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   /**
    * @swagger
    * /api/users/search:
@@ -117,7 +154,7 @@ router.get('/search', authMiddleware, async (req: Request, res: Response) => {
 
     // Recherche leselect('_id users utilisateurs par username qui contient la requête (insensible à la casse)
     // Exclut l'utilisateur actuel des résultats
-    const users = await userService.getUserByUsernamesUnlessIds([query], [req.user.userId]);
+    const users = await userService.getUserByUsernamesUnlessIds(query, [req.user.userId]);
     // Take name, profilePicture, and bio of the first 20 users
     const limitedUsers = users.slice(0, 20).map(user => ({
       _id: user._id,
@@ -269,7 +306,24 @@ router.get('/search', authMiddleware, async (req: Request, res: Response) => {
     }
   });
 
-
+  router.get('/find-id-by-username/:username', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { username } = req.params;
+    if (!username) {
+      return res.status(400).json({ message: 'Paramètre "username" requis' });
+    }
+    const user = await User.findOne({ username: username });
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    res.json({ _id: user._id });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Erreur lors de la recherche par username',
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
 
   /**
    * @swagger

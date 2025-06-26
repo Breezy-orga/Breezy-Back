@@ -1,6 +1,8 @@
+import { postRepository } from '../repositories/post.repository';
 import User from '../models/User';
 import { UserRepository } from '../repositories/user.repository';
 import mongoose from 'mongoose';
+import { commentRepository } from '../repositories/comment.repository';
 
 export class userService {
 
@@ -19,7 +21,9 @@ export class userService {
       if (!userId) {
         throw new Error('User not found');
       } else {
-        const user = await UserRepository.findById(userId);
+        const user = await User.findById(userId)
+          .select('-password');
+          
         return user;
       }
     } catch (error) {
@@ -40,6 +44,8 @@ export class userService {
 
   static async deleteUser(userId: string) {
     try {
+      await postRepository.deleteMany({ author: userId });
+      await commentRepository.deleteMany({ author: userId });
       const result = await UserRepository.deleteUser(userId);
       return result;
     } catch (error) {
@@ -212,7 +218,7 @@ export class userService {
       throw new Error('Failed to change user theme');
     }
   }
-  static async getUserByUsernamesUnlessIds(usernames: string[], unlessIds: string[]) {
+  static async getUserByUsernamesUnlessIds(usernames: string, unlessIds: string[]) {
     try {
       const users = await UserRepository.findByUsernamesUnlessIds(usernames, unlessIds);
       return users;
@@ -221,6 +227,7 @@ export class userService {
       throw new Error('Failed to fetch users');
     }
   }
+
   static async getUserByIdSelectAndPopulate(userId: string, select: string = '', populate: string[]= []) {
     try {
       const user = await UserRepository.getUserByIdSelectAndPopulate(userId, select, populate);

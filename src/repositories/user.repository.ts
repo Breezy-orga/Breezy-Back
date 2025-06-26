@@ -43,9 +43,9 @@ export const UserRepository = {
   async findByUsername(username: string): Promise<IUser | null> {
     return await User.findOne({ username });
   },
-  async findByUsernamesUnlessIds(usernames: string[], unlessIds: string[]): Promise<IUser[]> {
-    return await User.find({
-      username: { $in: usernames },
+  async findByUsernamesUnlessIds(query: string, unlessIds: string[]) {
+    return User.find({
+      username: { $regex: query, $options: 'i' },
       _id: { $nin: unlessIds }
     });
   },

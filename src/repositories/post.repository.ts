@@ -31,5 +31,9 @@ export const postRepository = {
       throw new Error('Post not found');
     }
     return Post.findByIdAndDelete(postId);
-  }
+  },
+    deleteMany: async (filter: any) => {
+        const result = await Post.deleteMany(filter);
+        return result;
+    }
 }
