@@ -26,6 +26,7 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction): void =
 
     next();
   } catch (error) {
+    res.clearCookie('token', { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/' });
     res.status(401).json({ message: 'Token invalide' });
   }
 };

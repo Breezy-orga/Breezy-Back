@@ -32,6 +32,17 @@ export class userService {
     }
   }
 
+  static async getUsersByIds(ids: string[]){
+    try{
+      if (ids.length===0) return [];
+      const users = await User.find({_id: { $in: ids}})
+        .select('_id username profilePicture');
+      return users;
+    }catch (error) {
+      console.error('error fetching')
+    }
+  }
+
   static async updateUser(userId: string, updateData: any) {
     try {
       const updatedUser = await UserRepository.updateUser(userId, updateData);
