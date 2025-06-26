@@ -33,7 +33,7 @@ router.post('/register', async (req: Request, res: Response) => {
 
     // Générer le token
     const token = jwt.sign(
-      { userId: user._id },
+      { userId: user._id, role: user.role },
       process.env.JWT_SECRET || 'fallback_secret',
       { expiresIn: '24h' }
     );
@@ -79,31 +79,9 @@ router.options('/login', (req: Request, res: Response) => {
 // Connexion
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    console.log('Requête de connexion reçue:', {
-      body: { ...req.body, password: req.body.password ? '***' : 'non fourni' },
-      headers: req.headers,
-      method: req.method,
-      url: req.url
-    });
-
-    const { identifier, email, username, password } = req.body;
-    
-    // Gérer à la fois l'ancien format (email/username) et le nouveau (identifier)
-    const loginIdentifier = identifier || email || username;
-    
-    if (!loginIdentifier) {
-      const error = 'Email ou nom d\'utilisateur requis';
-      console.error('Erreur de connexion:', error);
-      return res.status(400).json({ message: error });
-    }
-    
-    if (!password) {
-      const error = 'Mot de passe requis';
-      console.error('Erreur de connexion:', error);
-      return res.status(400).json({ message: error });
-    }
-    
-    console.log('Login attempt with identifier:', loginIdentifier);
+    console.log('BLABLABLABLA');
+    const { identifier, password } = req.body;
+    console.log('Login attempt with identifier:', identifier);
 
     // Trouver l'utilisateur par email ou username
     const user = await User.findOne({
@@ -130,13 +108,22 @@ router.post('/login', async (req: Request, res: Response) => {
 
     // Générer le token
     const token = jwt.sign(
-      { userId: user._id },
+      { userId: user._id, role: user.role },
       process.env.JWT_SECRET || 'fallback_secret',
       { expiresIn: '24h' }
     );
-    
-    const responseData = {
-      success: true,
+    console.log('Token generated successfully for user:', identifier);
+
+     // Définir le cookie sécurisé
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
+      path: '/'
+    });
+
+    res.json({
       token,
       user: {
         id: user._id,

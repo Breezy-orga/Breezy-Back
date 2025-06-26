@@ -1,10 +1,26 @@
 import express, { Request, Response } from 'express';
 import authMiddleware from '../middleware/auth';
 import Notification from '../models/Notification';
-import User from '../models/User';
 
 const router = express.Router();
 
+
+/**
+   * @swagger
+   * /api/notifications/:
+   *   get:
+   *     summary: get notifications for the connected user
+   *     tags: [User]
+   *     responses:
+   *       200:
+   *         description: user notifications retrieved successfully
+   *       401:
+   *         description: Unauthorized
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Server error
+   */
 // Récupérer les notifications de l'utilisateur connecté
 router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -24,7 +40,22 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-// Marquer une notification comme lue
+/**
+   * @swagger
+   * /api/notifications/{id}/read:
+   *   put:
+   *     summary: mark a notification as read
+   *     tags: [User]
+   *     responses:
+   *       200:
+   *         description: Notification marked as read successfully
+   *       401:
+   *         description: Unauthorized
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Server error
+   */
 router.put('/:id/read', authMiddleware, async (req: Request, res: Response) => {
   try {
     if (!req.user?.userId) {
@@ -50,7 +81,22 @@ router.put('/:id/read', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-// Marquer toutes les notifications comme lues
+/**
+   * @swagger
+   * /api/notifications/read-all:
+   *   get:
+   *     summary: mark all notifications as read
+   *     tags: [User]
+   *     responses:
+   *       200:
+   *         description: All notifications marked as read successfully
+   *       401:
+   *         description: Unauthorized
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Server error
+   */
 router.put('/read-all', authMiddleware, async (req: Request, res: Response) => {
   try {
     if (!req.user?.userId) {
@@ -69,6 +115,23 @@ router.put('/read-all', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
+
+/**
+   * @swagger
+   * /api/notifications/{id}:
+   *   delete:
+   *     summary: suppress a notification
+   *     tags: [User]
+   *     responses:
+   *       200:
+   *         description: Notification deleted successfully
+   *       401:
+   *         description: Unauthorized
+   *       404:
+   *         description: Notification not found
+   *       500:
+   *         description: Server error
+   */
 // Supprimer une notification
 router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -92,7 +155,23 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-// Compter le nombre de notifications non lues
+
+/**
+   * @swagger
+   * /api/notifications/unread-count:
+   *   get:
+   *     summary: count of unread notifications
+   *     tags: [User]
+   *     responses:
+   *       200:
+   *         description: Unread notifications count retrieved successfully
+   *       401:
+   *         description: Unauthorized
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Server error
+   */
 router.get('/unread-count', authMiddleware, async (req: Request, res: Response) => {
   try {
     if (!req.user?.userId) {

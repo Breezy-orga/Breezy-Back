@@ -11,10 +11,16 @@ import cookieParser from 'cookie-parser';
 
 import authRoutes from './routes/auth';
 import postRoutes from './routes/posts';
-import userRoutes from './routes/users';
+import usersRoutes from './routes/userRoutes/users';
 import mediaRoutes from './routes/media';
+import themeRoutes from './routes/userRoutes/theme';
+import privateMessageRoutes from './routes/privateMessage';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpecs from './swagger';
 import commentRoutes from './routes/comments';
 import notificationRoutes from './routes/notifications';
+import profileRoutes from './routes/userRoutes/profile';
+import followRoutes from './routes/userRoutes/follow';
 
 const app: Application = express();
 
@@ -108,17 +114,29 @@ app.options('*', cors(corsOptions)); // Activer les requêtes OPTIONS
 // Middleware pour parser les cookies
 app.use(cookieParser());
 
+// Swagger setup
+
 // Augmentation de la limite de taille des requêtes JSON à 16MB pour supporter les images en base64
 app.use(express.json({ limit: '16mb' }));
 app.use(morgan('dev'));
+app.use(cookieParser());
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
+
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
-app.use('/api/users', userRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api/privateMessages', privateMessageRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
+//users route 
+app.use('/api/users', usersRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/theme', themeRoutes);
+app.use('/api/follow', followRoutes);
+
 
 // Error handling middleware
 interface ErrorWithMessage extends Error {
