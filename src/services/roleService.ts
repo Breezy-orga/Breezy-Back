@@ -1,4 +1,4 @@
-import { roleRepository } from "@/repositories/role.repository";
+import { roleRepository } from "../repositories/role.repository";
 
 export class RoleService {
   static async updateUserRole(userId: string, role: string) {

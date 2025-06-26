@@ -13,10 +13,10 @@ class RoleRoutes {
 
   private routes() {
 
-    router.put('/role/:userId', authMiddleware, async (req: Request, res: Response) => {
+    router.put('/:userId', authMiddleware, async (req: Request, res: Response) => {
         
         const { userId } = req.params;
-        const { role } = req.body.role;
+        const { role } = req.body;
 
         try {
           const updatedRole = await RoleService.updateUserRole(userId, role);
