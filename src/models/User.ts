@@ -4,12 +4,12 @@ import bcrypt from 'bcryptjs';
 // Interface représentant un utilisateur
 export interface IUser extends Document {
   username: string;
+  displayName: string;
   email: string;
   password: string;
   role: string;
   bio: string;
   profilePicture: string;
-  pseudonym: string;
   theme: 'light' | 'dark';
   profileViews: number;
   followers: mongoose.Types.ObjectId[];
@@ -60,7 +60,7 @@ const userSchema = new Schema<IUser>(
       type: String,
       default: '/default-avatar.png',
     },
-    pseudonym: {
+    displayName: {
       type: String,
       trim: true,
       default: '',
