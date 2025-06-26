@@ -7,10 +7,6 @@ export class PostService {
         let post;
         let parentPostValue;
         try {
-            if (!userId) {
-                throw new Error('Utilisateur non authentifié');
-            }
-
             const { content = '', parentPost, media = [], tags = [] } = postData;
             parentPostValue = parentPost;
 
@@ -94,5 +90,23 @@ export class PostService {
             console.error('Erreur lors du traitement des mentions:', mentionError);
         }
         return post;
+    }
+
+    static async deletePost(postId: string, userId: string) {
+        // Trouver le post
+        const post = await postRepository.findById(postId);
+        if (!post) {
+            throw new Error('Post non trouvé');
+        }
+        // Vérifier l'auteur
+        if (post.author.toString() !== userId) {
+            throw new Error('Non autorisé à supprimer ce post');
+        }
+        // Si c'est un commentaire, décrémenter le compteur du post parent
+        if (post.isComment && post.parentPost) {
+            await postRepository.update(post.parentPost.toString(), { $inc: { commentsCount: -1 } });
+        }
+        // Supprimer le post
+        await postRepository.delete(postId );
     }
 }

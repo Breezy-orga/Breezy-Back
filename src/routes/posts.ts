@@ -52,7 +52,6 @@ router.post('/', authMiddleware, express.json({limit: '50mb'}), async (req: Requ
 });
 
 
-
 /**
      * @swagger
      * /api/posts/feed:
@@ -74,6 +73,24 @@ router.post('/', authMiddleware, express.json({limit: '50mb'}), async (req: Requ
      *       500:
      *         description: Erreur lors de la récupération du fil d'actualités
      */
+
+// Supprimer un post
+router.delete('/:postId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    }
+    const result = await PostService.deletePost(req.params.postId, req.user.userId);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'Erreur lors de la suppression du post', 
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+
 // Obtenir le flux d'actualités
 router.get('/feed', authMiddleware, async (req: Request, res: Response) => {
   try {
