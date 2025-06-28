@@ -1,6 +1,18 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 import { IUser } from './User';
 import { IComment } from './Comment';
+<<<<<<< Updated upstream
+=======
+
+// Interface pour les médias intégrés dans les posts
+export interface IMedia {
+  filename?: string;
+  base64?: string;
+  contentType?: string;
+  alt?: string;
+}
+
+>>>>>>> Stashed changes
 
 // Interface pour le média
 export interface IMedia {
@@ -18,6 +30,7 @@ export interface IPost extends Document {
   comments: mongoose.Types.ObjectId[];
   commentsCount: number;
   parentPost?: mongoose.Types.ObjectId;
+  parentComment?: mongoose.Types.ObjectId;
   isComment: boolean;
   media: IMedia[];
   tags: string[];
@@ -73,11 +86,38 @@ const postSchema = new Schema<IPost>(
       type: Schema.Types.ObjectId,
       ref: 'Post',
     },
+    parentComment: {
+      type: Schema.Types.ObjectId,
+      ref: 'Post',
+    },
     isComment: {
       type: Boolean,
       default: false,
     },
+<<<<<<< Updated upstream
     media: [mediaSchema], // Tableau de médias (photos/vidéos)
+=======
+    medias: [
+      {
+        filename: {
+          type: String,
+          required: false
+        },
+        base64: {
+          type: String,
+          required: false
+        },
+        contentType: {
+          type: String,
+          required: false
+        },
+        alt: {
+          type: String,
+          required: false
+        }
+      }
+    ], // Tableau de médias (photos/vidéos) intégrés
+>>>>>>> Stashed changes
     tags: [{
       type: String,
       trim: true

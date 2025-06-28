@@ -11,10 +11,30 @@ import cookieParser from 'cookie-parser';
 
 import authRoutes from './routes/auth';
 import postRoutes from './routes/posts';
+<<<<<<< Updated upstream
 import userRoutes from './routes/users';
 import mediaRoutes from './routes/media';
 import commentRoutes from './routes/comments';
 import notificationRoutes from './routes/notifications';
+=======
+import usersRoutes from './routes/userRoutes/users';
+import themeRoutes from './routes/userRoutes/theme';
+import privateMessageRoutes from './routes/privateMessage';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpecs from './swagger';
+import commentRoutes from './routes/comments';
+import notificationRoutes from './routes/notifications';
+import profileRoutes from './routes/userRoutes/profile';
+import followRoutes from './routes/userRoutes/follow';
+import roleRoutes from './routes/userRoutes/role';
+
+// Import models to register them with Mongoose
+import './models/User';
+import './models/Post';
+import './models/Comment';
+import './models/Notification';
+
+>>>>>>> Stashed changes
 
 const app: Application = express();
 
@@ -115,8 +135,12 @@ app.use(morgan('dev'));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
+<<<<<<< Updated upstream
 app.use('/api/users', userRoutes);
 app.use('/api/media', mediaRoutes);
+=======
+app.use('/api/privateMessages', privateMessageRoutes);
+>>>>>>> Stashed changes
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
 

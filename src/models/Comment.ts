@@ -2,10 +2,19 @@ import mongoose, { Document, Schema, Model } from 'mongoose';
 import { IUser } from './User';
 import { IPost } from './Post';
 
+<<<<<<< Updated upstream
 // Interface représentant le format des médias
 interface IMedia {
   base64: string;
   contentType: string;
+=======
+// Interface pour les médias intégrés dans les commentaires
+export interface IMedia {
+  filename?: string;
+  base64?: string;
+  contentType?: string;
+  alt?: string;
+>>>>>>> Stashed changes
 }
 
 // Interface représentant un commentaire

@@ -4,9 +4,49 @@ import User from '../models/User';
 import Notification from '../models/Notification';
 import authMiddleware from '../middleware/auth';
 import mongoose from 'mongoose';
+<<<<<<< Updated upstream
 
 const router = express.Router();
 
+=======
+import { PostService } from '../services/postService';
+import { MediaService } from '../services/mediaService';
+import { v4 as uuidv4 } from 'uuid';
+
+const router = express.Router();
+
+// Liste des types MIME acceptés pour les médias
+const ACCEPTED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml'
+];
+
+const ACCEPTED_VIDEO_TYPES = [
+  'video/mp4',
+  'video/webm',
+  'video/ogg'
+];
+
+
+
+/**
+     * @swagger
+     * /api/posts:
+     *   post:
+     *     summary: Créer un nouveau post
+     *     tags: [Posts]
+     *     responses:
+     *       201:
+     *         description: Post créé avec succès
+     *       400:
+     *         description: Mauvaise requête, paramètres manquants
+     *       500:
+     *         description: Erreur lors de la création du post
+     */
+>>>>>>> Stashed changes
 // Créer un nouveau post
 router.post('/', authMiddleware, express.json({limit: '50mb'}), async (req: Request, res: Response) => {
   try {
@@ -279,7 +319,7 @@ router.post('/:postId/like', authMiddleware, async (req: Request, res: Response)
       return res.status(401).json({ message: 'Utilisateur non authentifié' });
     }
 
-    const post = await Post.findById(req.params.postId).populate('author', '_id');
+    const post = await Post.findById(req.params.postId).populate('author', 'username profilePicture displayName isVerified');
     if (!post) {
       return res.status(404).json({ message: 'Post non trouvé' });
     }
@@ -327,7 +367,13 @@ router.post('/:postId/like', authMiddleware, async (req: Request, res: Response)
     }
 
     await post.save();
-    res.json(post);
+    
+    // Re-populate le post avec toutes les informations nécessaires pour le frontend
+    const populatedPost = await Post.findById(post._id)
+      .populate('author', 'username profilePicture displayName isVerified')
+      .populate('likes', 'username');
+    
+    res.json(populatedPost);
   } catch (error) {
     res.status(500).json({ 
       message: 'Erreur lors du like/unlike', 
@@ -339,15 +385,24 @@ router.post('/:postId/like', authMiddleware, async (req: Request, res: Response)
 // Obtenir les commentaires d'un post
 router.get('/:postId/comments', authMiddleware, async (req: Request, res: Response) => {
   try {
+    const userId = (req.user as any)?.userId;
+    
     const comments = await Post.find({
       parentPost: req.params.postId,
       isComment: true
     })
-    .populate('author', 'username profilePicture')
+    .populate('author', 'username profilePicture displayName isVerified')
     .populate('likes', 'username')
     .sort({ createdAt: -1 });
 
-    res.json(comments);
+    // Ajouter l'information isLiked pour chaque commentaire
+    const commentsWithLikeStatus = comments.map(comment => {
+      const commentObj = comment.toObject();
+      (commentObj as any).isLiked = userId ? comment.likes.some((like: any) => like._id.toString() === userId) : false;
+      return commentObj;
+    });
+
+    res.json(commentsWithLikeStatus);
   } catch (error) {
     res.status(500).json({ 
       message: 'Erreur lors de la récupération des commentaires', 
@@ -450,6 +505,211 @@ router.get('/:postId', authMiddleware, async (req: Request, res: Response) => {
       message: 'Erreur lors de la récupération du post/commentaire', 
       error: error instanceof Error ? error.message : String(error)
     });
+  }
+});
+
+/**
+ * @swagger
+ * /api/posts/trending-hashtags:
+ *   get:
+ *     summary: Récupérer les hashtags tendance
+ *     tags: [Posts]
+ *     responses:
+ *       200:
+ *         description: Hashtags tendance récupérés avec succès
+ *       500:
+ *         description: Erreur lors de la récupération des hashtags tendance
+ */
+// Obtenir les hashtags tendance
+router.get('/trending-hashtags', async (req: Request, res: Response) => {
+  try {
+    // Agrégation pour compter les hashtags les plus populaires
+    const trendingHashtags = await Post.aggregate([
+      // Filtrer les posts (pas les commentaires) créés dans les derniers 7 jours
+      {
+        $match: {
+          isComment: false,
+          createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, // 7 jours
+          tags: { $exists: true, $ne: [] } // S'assurer que le champ tags existe et n'est pas vide
+        }
+      },
+      // Décomposer le tableau de tags pour chaque post
+      {
+        $unwind: '$tags'
+      },
+      // Filtrer les tags vides
+      {
+        $match: {
+          tags: { $ne: '' }
+        }
+      },
+      // Grouper par tag et compter
+      {
+        $group: {
+          _id: '$tags',
+          count: { $sum: 1 }
+        }
+      },
+      // Trier par popularité décroissante
+      {
+        $sort: { count: -1 }
+      },
+      // Limiter aux 10 premiers
+      {
+        $limit: 10
+      },
+      // Reformater le résultat
+      {
+        $project: {
+          _id: 0,
+          hashtag: { 
+            $cond: {
+              if: { $regexMatch: { input: '$_id', regex: /^#/ } },
+              then: '$_id',
+              else: { $concat: ['#', '$_id'] }
+            }
+          },
+          count: 1
+        }
+      }
+    ]);
+
+    // Si aucun hashtag trouvé, retourner des hashtags par défaut
+    if (trendingHashtags.length === 0) {
+      const defaultHashtags = [
+        { hashtag: '#BreezyApp', count: 15 },
+        { hashtag: '#SocialMedia', count: 12 },
+        { hashtag: '#NextJS', count: 8 },
+        { hashtag: '#TypeScript', count: 6 },
+        { hashtag: '#WebDev', count: 4 }
+      ];
+      return res.json(defaultHashtags);
+    }
+
+    res.json(trendingHashtags);
+  } catch (error) {
+    console.error('Erreur récupération hashtags tendance:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors de la récupération des hashtags tendance', 
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// Routes pour les médias (intégrées dans posts car liées aux posts)
+
+/**
+ * @swagger
+ * /api/posts/media/upload:
+ *   post:
+ *     summary: Upload a media file (image or video in Base64)
+ *     tags: [Posts]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               base64:
+ *                 type: string
+ *                 description: The Base64 encoded media file
+ *               contentType:
+ *                 type: string
+ *                 description: The MIME type of the media file
+ *     responses:
+ *       200:
+ *         description: Media uploaded successfully
+ *       400:
+ *         description: Invalid media type or missing fields
+ *       500:
+ *         description: Server error
+ */
+// Route pour uploader un média (image ou vidéo en Base64)
+router.post('/media/upload', authMiddleware, express.json({limit: '16mb'}), async (req: Request, res: Response) => {
+  try {
+    const body = req.body
+    MediaService.uploadMedia(body, ACCEPTED_IMAGE_TYPES, ACCEPTED_VIDEO_TYPES);
+    // Génération du nom de fichier unique
+    const filename = `${Date.now()}-${uuidv4().substring(0, 8)}`;
+    console.log(`💥💥💥DEBUG: Upload de média - filename=${filename}, contentType=${req.body.contentType}`);
+    // Retourne les informations nécessaires pour stocker dans un post
+    res.json({
+      filename,
+      contentType: req.body.contentType,
+      base64: req.body.base64,
+      success: true
+    });
+  } catch (error) {
+    console.error('Erreur lors de l\'upload:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors de l\'upload d\'image', 
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/posts/media/{postId}/{mediaIndex}:
+ *   get:
+ *     summary: Get media from a post by index
+ *     tags: [Posts]
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The post ID
+ *       - in: path
+ *         name: mediaIndex
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The media index in the post
+ *       - in: query
+ *         name: format
+ *         schema:
+ *           type: string
+ *           enum: [raw, json]
+ *         description: Response format (raw for binary data, json for metadata)
+ *     responses:
+ *       200:
+ *         description: Media retrieved successfully
+ *       400:
+ *         description: Invalid post ID or media index
+ *       404:
+ *         description: Post not found or media not found at index
+ *       500:
+ *         description: Server error
+ */
+// Route pour récupérer un média par l'ID du post et l'index du média
+router.get('/media/:postId/:mediaIndex', async (req: Request, res: Response) => {
+  console.log(`DEBUG: Accès à l'endpoint média - postId=${req.params.postId}, mediaIndex=${req.params.mediaIndex}`);
+  try {
+    const postId = req.params.postId;
+    const mediaIndex = parseInt(req.params.mediaIndex, 10);
+    
+    const result = await MediaService.getMediaByPostIdAndIndex(postId, mediaIndex, req, res);
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error instanceof Error) {
+      switch (error.message) {
+        case 'ID de post invalide':
+          return res.status(400).json({ message: error.message });
+        case 'Index de média invalide':
+          return res.status(400).json({ message: error.message });
+        case 'Post non trouvé':
+          return res.status(404).json({ message: error.message });
+        case 'Média non trouvé à l\'index spécifié':
+          return res.status(404).json({ message: error.message });
+        case 'Contenu base64 non trouvé':
+          return res.status(404).json({ message: error.message });
+        default:
+          return res.status(500).json({ message: 'Erreur serveur', error: error.message });
+      }
+    }
   }
 });
 
