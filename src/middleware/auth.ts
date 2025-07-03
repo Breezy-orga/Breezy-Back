@@ -41,51 +41,8 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction): void =
     req.user = decoded as jwt.JwtPayload;
     next();
   } catch (error) {
-    console.error('Erreur de vérification du token:', error);
-    
-    // Gérer différents types d'erreurs
-    let statusCode = 401;
-    let errorMessage = 'Erreur d\'authentification';
-    let errorCode = 'AUTH_ERROR';
-    let errorDetails: string | undefined;
-    
-    // Type guard pour vérifier si l'erreur est une instance d'Error
-    const isError = (e: unknown): e is Error => {
-      return e instanceof Error;
-    };
-    
-    if (isError(error)) {
-      errorDetails = error.message;
-      
-      if (error.message.includes('expiré')) {
-        errorMessage = 'Session expirée. Veuillez vous reconnecter.';
-        errorCode = 'TOKEN_EXPIRED';
-      } else if (error.message.includes('invalide')) {
-        errorMessage = 'Token d\'authentification invalide';
-        errorCode = 'INVALID_TOKEN';
-      }
-    } else {
-      // Si l'erreur n'est pas une instance d'Error, on la convertit en chaîne
-      errorDetails = String(error);
-    }
-    
-    const response: {
-      success: boolean;
-      message: string;
-      code: string;
-      error?: string;
-    } = {
-      success: false,
-      message: errorMessage,
-      code: errorCode,
-    };
-
-    // Ne pas exposer les détails de l'erreur en production
-    if (process.env.NODE_ENV === 'development') {
-      response.error = errorDetails;
-    }
-
-    res.status(statusCode).json(response);
+    res.clearCookie('token', { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/' });
+    res.status(401).json({ message: 'Token invalide' });
   }
 };
 

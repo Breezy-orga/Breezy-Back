@@ -1,5 +1,7 @@
 import bcrypt from 'bcrypt';
 import User, { IUser } from '../models/User';
+import Post from "../models/Post";
+import Comment from "../models/Comment";
 
 export const UserRepository = {
   async findByEmail(email: string): Promise<IUser | null> {
@@ -19,6 +21,26 @@ export const UserRepository = {
   },
   async deleteUser(userId: string): Promise<IUser | null> {
     const user = await User.findByIdAndDelete(userId);
+    if (user) {
+      await Post.deleteMany({ author: userId });
+      await Comment.deleteMany({ author: userId });
+      await User.updateMany(
+        { followers: userId },
+        { $pull: { followers: userId } }
+      );
+      await User.updateMany(
+        { following: userId },
+        { $pull: { following: userId } }
+      );
+      await Post.updateMany(
+        { likes: userId },
+        { $pull: { likes: userId } }
+      );
+      await Comment.updateMany(
+        { likes: userId },
+        { $pull: { likes: userId } }
+      );
+    }
     return user;
   },
 

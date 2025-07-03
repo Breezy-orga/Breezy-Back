@@ -93,6 +93,34 @@ private routes() {
       res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
     }
   });
+
+router.get('/:id/following', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const user = await userService.getUserById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    const followingIds = (user.following || []).map(id => id.toString());
+    const following = await userService.getUsersByIds(followingIds);
+    res.json(following);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+router.get('/:id/followers', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const user = await userService.getUserById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    const followersIds = (user.followers || []).map(id => id.toString());
+    const followers = await userService.getUsersByIds(followersIds);
+    res.json(followers);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error instanceof Error ? error.message : String(error) });
+  }
+});
 }
 }
 new FollowRoutes(); 
