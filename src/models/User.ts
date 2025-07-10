@@ -46,9 +46,9 @@ const userSchema = new Schema<IUser>(
       minlength: 6,
     },
     role: {
-    type: String,
-    enum: ['user', 'moderator', 'admin'],
-    default: 'user'
+      type: String,
+      enum: ['user', 'moderator', 'admin'],
+      default: 'user'
     },
     bio: {
       type: String,
@@ -79,11 +79,7 @@ const userSchema = new Schema<IUser>(
     profileViews: {
       type: Number,
       default: 0
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
+    }
   },
   {
     timestamps: true,
@@ -107,6 +103,22 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };
+
+// Virtuals pour peupler posts et comments
+userSchema.virtual('posts', {
+  ref: 'Post',
+  localField: '_id',
+  foreignField: 'author'
+});
+userSchema.virtual('comments', {
+  ref: 'Post',
+  localField: '_id',
+  foreignField: 'parentPost'
+});
+
+// Inclure les virtuals dans toJSON / toObject
+userSchema.set('toObject', { virtuals: true });
+userSchema.set('toJSON', { virtuals: true });
 
 const User = mongoose.model<IUser, IUserModel>('User', userSchema);
 

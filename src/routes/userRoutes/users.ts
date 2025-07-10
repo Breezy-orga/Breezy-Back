@@ -243,7 +243,8 @@ router.get('/search', authMiddleware, async (req: Request, res: Response) => {
    router.get('/authenticate/:userId', authMiddleware, async (req: Request, res: Response) => {
     try {
       const selection = '-password -__v'; // Sélection des champs à exclure
-      const populate = ['posts', 'comments', 'likes']; // Champs à peupler
+      const populate: string[] = [];
+      //const populate = ['posts', 'comments', 'likes']; // Champs à peupler
       const user = await userService.getUserByIdSelectAndPopulate(req.params.userId, selection, populate);
 
       if (!user) {
