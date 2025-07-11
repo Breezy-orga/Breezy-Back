@@ -173,14 +173,13 @@ export class userService {
   static async getSuggestions(userId: string) {
     const currentUser = await UserRepository.findById(userId);
     if (!currentUser) {
-      console.log("TA GROSSE MERE LA PUTE")
       throw new Error('User not found');
     }
 
     const followingIds = currentUser.following.map((id: mongoose.Types.ObjectId) => id.toString());
 
     const users = await UserRepository.getSuggestions(userId, followingIds);
-    console.log('👌👌👌Suggestions fetched successfully', { users });
+    console.log('$Suggestions fetched successfully', { users });
     return users;
   }
 

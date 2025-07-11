@@ -1,6 +1,8 @@
 import { notificationRepository } from "../repositories/notification.repository";
 import { postRepository } from "../repositories/post.repository";
 import { UserRepository } from "../repositories/user.repository";
+import { mediaRepository } from "../repositories/media.repository";
+import mongoose from "mongoose";
 
 export class PostService {
     static async createPost(postData: any, userId: string) {
@@ -14,99 +16,108 @@ export class PostService {
             if (!content && media.length === 0) {
                 throw new Error('Le post doit contenir du texte ou au moins un média');
             }
-            console.log("💥💥💥DEBUG: Création du post - media.base64:", media);
-            // Créer le post avec le contenu et éventuellement les médias et tags
+
+            // Enregistrement des médias et récupération de leurs ObjectId
+            const savedMediaIds: mongoose.Types.ObjectId[] = [];
+            for (const m of media) {
+                const savedMedia = await mediaRepository.create({
+                    filename: m.filename,
+                    base64: m.base64,
+                    contentType: m.contentType,
+                    alt: m.alt
+                });
+                savedMediaIds.push(savedMedia._id);
+            }
+
+            // Création du post avec références aux médias
             try {
                 post = await postRepository.create({
                     content,
                     author: userId,
                     parentPost: parentPostValue || null,
                     isComment: !!parentPostValue,
-                    media: media,
+                    media: savedMediaIds,
                     commentsCount: 0,
                     tags: Array.isArray(tags) ? tags : []
                 });
 
+                // Populer l'auteur
                 await post.populate('author', 'username profilePicture');
+                // Populer les médias et injecter base64, contentType, alt
+                await post.populate({
+                    path: 'media',
+                    select: 'base64 contentType alt'
+                });
+
+                // Convertir en objet simple et ajouter URL pour front
+                const postObj: any = post.toObject();
+                postObj.media = postObj.media.map((m: any) => ({
+                    _id: m._id,
+                    base64: m.base64,
+                    contentType: m.contentType,
+                    alt: m.alt,
+                    url: `/api/media/${m._id}`
+                }));
+
+                return postObj;
             } catch (saveError) {
-                console.error('Erreur lors de la sauvegarde du post:', "500 post"/*error.message*/);
-                throw new Error('Erreur lors de la sauvegarde du post: ' + (saveError instanceof Error ? saveError.message : String("500 post"/*error.message*/)));
+                console.error('Erreur lors de la sauvegarde du post:', saveError);
+                throw new Error('Erreur lors de la sauvegarde du post: ' +
+                    (saveError instanceof Error ? saveError.message : String(saveError)));
             }
-        } catch (saveError) {
-            console.error('Erreur lors de la sauvegarde du post:', "500 post"/*error.message*/);
-            throw new Error('Erreur lors de la sauvegarde du post: ' + (saveError instanceof Error ? saveError.message : String("500 post"/*error.message*/)));
+        } catch (error) {
+            console.error('Erreur lors de la préparation du post:', error);
+            throw new Error('Erreur lors de la préparation du post: ' +
+                (error instanceof Error ? error.message : String(error)));
+        } finally {
+            // Si c'est un commentaire, incrémenter le compteur du post parent
+            if (parentPostValue && post) {
+                await postRepository.update(parentPostValue, { $inc: { commentsCount: 1 } });
+            }
         }
-        // Si c'est un commentaire, incrémenter le compteur du post parent
-        if (parentPostValue) {
-            await postRepository.update(parentPostValue, { $inc: { commentsCount: 1 } });
-        }
-        
-        // Détecter les mentions (@username) et créer des notifications
+
+        // Gestion des mentions (@username) et création de notifications
         try {
-            if (postData.content && postData.content.trim().length > 0) {
-                // Trouver tous les @username dans le contenu (expression régulière améliorée)
+            if (postData.content?.trim()) {
                 const mentions = postData.content.match(/@([\w.-]+)/g);
 
-                console.log('Mentions détectées:', mentions);
-                
-                if (mentions && mentions.length > 0) {
-                    // Extraire les noms d'utilisateur sans le @
+                if (mentions?.length) {
                     const usernames = mentions.map((mention: string) => mention.substring(1));
-                    
-                    console.log('Usernames extraits:', usernames);
-                    
-                    // Trouver les utilisateurs correspondants
                     const mentionedUsers = await UserRepository.findMentionnedUsers(usernames, userId);
 
-                    console.log('Utilisateurs trouvés:', mentionedUsers.map(u => u.username));
-                    
-                    if (mentionedUsers.length > 0) {
-                        // Créer une notification pour chaque utilisateur mentionné
+                    if (mentionedUsers.length) {
                         const notificationPromises = mentionedUsers.map(async user => {
                             const notification = await notificationRepository.create({
                                 recipient: user._id,
-                                sender: userId || '',
+                                sender: userId,
                                 type: 'mention',
                                 post: post._id,
                                 read: false
                             });
-
                             return notification.save();
                         });
-                        
                         await Promise.all(notificationPromises);
-                        console.log(`${notificationPromises.length} notifications créées pour les mentions`);
-                    } else {
-                        console.log('Aucun utilisateur trouvé pour les mentions:', usernames);
                     }
-                } else {
-                    console.log('Aucune mention détectée dans:', postData.content);
                 }
-            } else {
-                console.log('Post sans contenu textuel, pas de vérification de mentions');
             }
         } catch (mentionError) {
-            // Ne pas bloquer la st si la gestion des mentions échoue
             console.error('Erreur lors du traitement des mentions:', mentionError);
         }
+
         return post;
     }
 
     static async deletePost(postId: string, userId: string) {
-        // Trouver le post
         const post = await postRepository.findById(postId);
         if (!post) {
             throw new Error('Post non trouvé');
         }
-        // Vérifier l'auteur
         if (post.author.toString() !== userId) {
             throw new Error('Non autorisé à supprimer ce post');
         }
-        // Si c'est un commentaire, décrémenter le compteur du post parent
         if (post.isComment && post.parentPost) {
             await postRepository.update(post.parentPost.toString(), { $inc: { commentsCount: -1 } });
         }
-        // Supprimer le post
-        await postRepository.delete(postId );
+        await postRepository.delete(postId);
     }
 }

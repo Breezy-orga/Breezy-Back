@@ -38,11 +38,11 @@ export class MediaService {
         }
         
         // Vérification de l'existence du média
-        if (!post.medias || !post.medias[index]) {
+        if (!post.media || !post.media[index]) {
           throw new Error('Média non trouvé à l\'index spécifié');
         }
         
-        const media = post.medias[index];
+        const media = post.media[index];
         
         // Vérification de l'existence du base64
         if (!media.base64) {
