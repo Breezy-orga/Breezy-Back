@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 // Interface représentant un utilisateur
 export interface IUser extends Document {
   username: string;
+  name?: string; // Nom d'affichage optionnel
   email: string;
   password: string;
   role: string;
@@ -32,6 +33,12 @@ const userSchema = new Schema<IUser>(
       trim: true,
       minlength: 3,
       maxlength: 30,
+    },
+    name: {
+      type: String,
+      trim: true,
+      maxlength: 50,
+      default: '', // Nom d'affichage optionnel
     },
     email: {
       type: String,
