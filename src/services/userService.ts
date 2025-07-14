@@ -34,12 +34,13 @@ export class userService {
 
   static async getUsersByIds(ids: string[]){
     try{
-      if (ids.length===0) return [];
+      if (ids.length === 0) return [];
       const users = await User.find({_id: { $in: ids}})
-        .select('_id username profilePicture');
+        .select('_id username name profilePicture');
       return users;
-    }catch (error) {
-      console.error('error fetching')
+    } catch (error) {
+      console.error('Error fetching users by IDs', { error });
+      throw new Error('Failed to fetch users');
     }
   }
 
@@ -73,15 +74,15 @@ export class userService {
       }
       const { name, bio, profilePicture } = updateData;
 
-      if (name && 'name' in user) (user as any).name = name;
-      if (bio) user.bio = bio;
+      if (name !== undefined) user.name = name; // Permettre les chaînes vides
+      if (bio !== undefined) user.bio = bio;
       if (profilePicture) user.profilePicture = profilePicture;
 
       await user.save();
       return user;
     } catch (error) {
-      console.error('Error fetching user profile', { error });
-      throw new Error('Failed to fetch user profile');
+      console.error('Error updating user profile', { error });
+      throw new Error('Failed to update user profile');
     }
   }
 
@@ -129,13 +130,17 @@ export class userService {
         currentUser.following.push(new mongoose.Types.ObjectId(targetUserId));
         userToFollow.followers.push(new mongoose.Types.ObjectId(currentUserId));
       }
+
+      // Sauvegarder les modifications
+      await currentUser.save();
+      await userToFollow.save();
+
       return { currentUser, userToFollow };
     } catch (error) {
       console.error('Error following user', { error });
       throw new Error('Failed to follow/unfollow user');
     }
   }
-
 
   static async unfollowUser(currentUserId: string, targetUserId: string) {
     try {
@@ -160,6 +165,10 @@ export class userService {
         userToUnfollow.followers = userToUnfollow.followers.filter(
           id => id.toString() !== currentUserId
         );
+
+        // Sauvegarder les modifications
+        await currentUser.save();
+        await userToUnfollow.save();
       }
       // If not following, do nothing
 
@@ -171,16 +180,21 @@ export class userService {
   }
 
   static async getSuggestions(userId: string) {
-    const currentUser = await UserRepository.findById(userId);
-    if (!currentUser) {
-      throw new Error('User not found');
+    try {
+      const currentUser = await UserRepository.findById(userId);
+      if (!currentUser) {
+        throw new Error('User not found');
+      }
+
+      const followingIds = currentUser.following.map((id: mongoose.Types.ObjectId) => id.toString());
+
+      const users = await UserRepository.getSuggestions(userId, followingIds);
+      console.log('Suggestions fetched successfully', { users });
+      return users;
+    } catch (error) {
+      console.error('Error fetching suggestions', { error });
+      throw new Error('Failed to fetch suggestions');
     }
-
-    const followingIds = currentUser.following.map((id: mongoose.Types.ObjectId) => id.toString());
-
-    const users = await UserRepository.getSuggestions(userId, followingIds);
-    console.log('$Suggestions fetched successfully', { users });
-    return users;
   }
 
   static async getTheme(userId: string) {
@@ -197,14 +211,14 @@ export class userService {
   }
 
   static async getAllUsers() {
-      try {
+    try {
       const users = await UserRepository.findAll();
       console.log('All users fetched successfully', { users });
       return users;
-      } catch (error) {
+    } catch (error) {
       console.error('Error fetching all users', { error });
       throw new Error('Failed to fetch users');
-      }
+    }
   }
   
   static async changeTheme(userId: string, theme: 'light' | 'dark') {
@@ -228,6 +242,7 @@ export class userService {
       throw new Error('Failed to change user theme');
     }
   }
+
   static async getUserByUsernamesUnlessIds(usernames: string, unlessIds: string[]) {
     try {
       const users = await UserRepository.findByUsernamesUnlessIds(usernames, unlessIds);
@@ -238,7 +253,7 @@ export class userService {
     }
   }
 
-  static async getUserByIdSelectAndPopulate(userId: string, select: string = '', populate: string[]= []) {
+  static async getUserByIdSelectAndPopulate(userId: string, select: string = '', populate: string[] = []) {
     try {
       const user = await UserRepository.getUserByIdSelectAndPopulate(userId, select, populate);
       return user;

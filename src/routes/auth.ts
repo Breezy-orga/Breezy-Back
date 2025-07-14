@@ -38,7 +38,16 @@ router.post('/register', async (req: Request, res: Response) => {
       { expiresIn: '24h' }
     );
 
-    const responseData = {
+    // Définir le cookie sécurisé
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
+      path: '/'
+    });
+
+    res.status(201).json({
       token,
       user: {
         id: user._id,
@@ -79,7 +88,6 @@ router.options('/login', (req: Request, res: Response) => {
 // Connexion
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    console.log('BLABLABLABLA');
     const { identifier, password } = req.body;
     console.log('Login attempt with identifier:', identifier);
 
@@ -114,21 +122,8 @@ router.post('/login', async (req: Request, res: Response) => {
     );
     console.log('Token generated successfully for user:', identifier);
 
-     // Définir le cookie sécurisé
-    // Définir l'origine spécifique au lieu de * quand on utilise credentials
-    const origin = req.headers.origin || '*';
-    const isProduction = process.env.NODE_ENV === 'production';
-    const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
-    const isSecure = isProduction;
-    const isLocalDevelopment = !isProduction && isLocalhost;
-    const cookieOptions: {
-      httpOnly: boolean;
-      secure: boolean;
-      sameSite: 'lax' | 'none' | 'strict' | boolean;
-      maxAge: number;
-      path: string;
-      domain?: string | undefined;
-    } = {
+    // Définir le cookie sécurisé
+    res.cookie('token', token, {
       httpOnly: true,
       secure: isSecure,
       sameSite: isLocalDevelopment ? 'lax' : 'lax',
@@ -164,6 +159,28 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 });
 
+// Déconnexion
+router.post('/logout', (req: Request, res: Response) => {
+  try {
+    // Supprimer le cookie de token
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
+    });
+
+    console.log('User logged out successfully');
+    res.json({ message: 'Déconnexion réussie' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors de la déconnexion', 
+      error: error instanceof Error ? error.message : String(error) 
+    });
+  }
+});
+
 // Récupérer l'utilisateur connecté
 router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -183,33 +200,14 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
 
 // Déconnexion
 router.post('/logout', (req: Request, res: Response) => {
-  try {
-    const origin = req.headers.origin || '*';
-    const isProduction = process.env.NODE_ENV === 'production';
-    
-    // Supprimer le cookie d'authentification
-    res.clearCookie('token', {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax',
-      path: '/',
-      domain: isProduction ? '.breezy-app.com' : undefined
-    });
-    
-    // En-têtes CORS
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Vary', 'Origin');
-    
-    res.json({ success: true, message: 'Déconnexion réussie' });
-  } catch (error) {
-    console.error('Logout error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Erreur lors de la déconnexion', 
-      error: error instanceof Error ? error.message : String(error) 
-    });
-  }
+  // Supprime le cookie du token côté client
+  res.clearCookie('token', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+  });
+  res.status(200).json({ message: 'Déconnecté' });
 });
 
 export default router;

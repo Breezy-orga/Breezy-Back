@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 import { userService } from "../../services/userService";
 import authMiddleware from "../../middleware/auth";
+import { NotificationHelper } from "../../utils/notificationHelper"; // Ajout de cet import
 
 const router = express.Router();
 
@@ -9,7 +10,6 @@ constructor() {
   this.routes();
 }
 private routes() {
-
 
   /**
    * @swagger
@@ -39,13 +39,46 @@ private routes() {
       if (!req.user?.userId) {
         return res.status(401).json({ message: 'Utilisateur non authentifié' });
       }
-      const newFollow = await userService.followUser(req.user.userId, req.params.id);
-
-      if (!newFollow) {
-        return res.status(400).json({ message: 'Unable to follow user' });
+      console.log('Current user ID:', req.user.userId);
+      console.log('Target user ID:', req.params.id);
+      
+      // Vérifier l'état avant le changement
+      const currentUser = await userService.getUserById(req.user.userId);
+      if (!currentUser) {
+        return res.status(404).json({ message: 'Utilisateur courant non trouvé' });
       }
-      res.json({ message: 'User followed successfully' });
+
+      const isCurrentlyFollowing = currentUser.following?.some(
+        id => id.toString() === req.params.id
+      ) || false;
+      
+      console.log('État avant changement:');
+      console.log('- Following array:', currentUser.following);
+      console.log('- Is currently following:', isCurrentlyFollowing);
+      
+      // Utiliser le service existant
+      const result = await userService.followUser(req.user.userId, req.params.id);
+      console.log('Result from userService.followUser:', result);
+
+      if (!result) {
+        return res.status(400).json({ message: 'Unable to follow/unfollow user' });
+      }
+      
+      // Créer ou supprimer la notification selon l'action
+      if (!isCurrentlyFollowing) {
+        console.log('Création notification follow...');
+        const notification = await NotificationHelper.createFollowNotification(req.params.id, req.user.userId);
+        console.log('Notification follow créée:', notification);
+        res.json({ message: 'User followed successfully', action: 'followed' });
+      } else {
+        console.log('Suppression notification follow...');
+        await NotificationHelper.removeFollowNotification(req.params.id, req.user.userId);
+        console.log('Notification follow supprimée');
+        res.json({ message: 'User unfollowed successfully', action: 'unfollowed' });
+      }
+      
     } catch (error) {
+      console.error('Erreur dans follow route:', error);
       if (error instanceof Error && error.message === "you can't follow yourself") {
         return res.status(400).json({ message: error.message });
       }
@@ -55,8 +88,6 @@ private routes() {
       res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
     }
   });
-
-
 
   /**
    * @swagger
@@ -87,6 +118,8 @@ private routes() {
       if (!unfollowed) {
         return res.status(400).json({ message: 'Unable to unfollow user' });
       }
+
+      await NotificationHelper.removeFollowNotification(req.params.id, req.user.userId);
 
       res.json({ message: 'User unfollowed successfully' });
     } catch (error) {

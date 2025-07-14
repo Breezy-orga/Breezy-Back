@@ -5,7 +5,7 @@ import { IPost } from './Post';
 export interface INotification extends Document {
   recipient: IUser['_id'];
   sender: IUser['_id'];
-  type: 'mention' | 'like' | 'follow' | 'comment';
+  type: 'mention' | 'like' | 'follow';
   post?: IPost['_id'];
   read: boolean;
   createdAt: Date;
@@ -25,12 +25,13 @@ const notificationSchema = new Schema<INotification>(
     },
     type: {
       type: String,
-      enum: ['mention', 'like', 'follow', 'comment'],
+      enum: ['mention', 'like', 'follow'],
       required: true,
     },
     post: {
       type: Schema.Types.ObjectId,
       ref: 'Post',
+      required: false,
     },
     read: {
       type: Boolean,
@@ -43,5 +44,8 @@ const notificationSchema = new Schema<INotification>(
   },
   { timestamps: true }
 );
+
+notificationSchema.index({ recipient: 1, createdAt: -1 });
+notificationSchema.index({ recipient: 1, read: 1 });
 
 export default mongoose.model<INotification>('Notification', notificationSchema);
