@@ -5,7 +5,6 @@ import Notification from '../models/Notification';
 import authMiddleware from '../middleware/auth';
 import mongoose from 'mongoose';
 import { PostService } from '../services/postService';
-import { NotificationHelper } from '../utils/notificationHelper'; // Ajout de cet import
 
 const router = express.Router();
 
@@ -15,18 +14,7 @@ router.post('/', authMiddleware, express.json({limit: '50mb'}), async (req: Requ
     if (!req.user?.userId) {
       return res.status(401).json({ message: 'Utilisateur non authentifié' });
     }
-    
     const post = await PostService.createPost(req.body, req.user.userId);
-    
-    // Créer des notifications pour les mentions
-    if (req.body.content) {
-      await NotificationHelper.createMentionNotifications(
-        req.body.content,
-        post._id.toString(),
-        req.user.userId
-      );
-    }
-    
     res.status(201).json(post);
   } catch (error) {
     if (error instanceof Error && error.message.includes('Utilisateur non authentifié')) {
@@ -46,7 +34,6 @@ router.post('/', authMiddleware, express.json({limit: '50mb'}), async (req: Requ
   }
 });
 
-// Le reste de votre code reste identique...
 // Supprimer un post
 router.delete('/:postId', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -121,75 +108,9 @@ router.get('/user/:userId', authMiddleware, async (req: Request, res: Response) 
   }
 });
 
-// Recherche de tags
-router.get('/tags/search', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    console.log('Route /tags/search appelée');
-    
-    if (!req.user?.userId) {
-      return res.status(401).json({ message: 'Utilisateur non authentifié' });
-    }
-
-    const { q } = req.query;
-    console.log('Paramètre q reçu:', q);
-    
-    if (!q || typeof q !== 'string') {
-      return res.status(400).json({ message: 'Paramètre de recherche "q" requis' });
-    }
-
-    const query = q.trim();
-    if (query.length < 2) {
-      return res.status(400).json({ message: 'La recherche doit contenir au moins 2 caractères' });
-    }
-
-    console.log('Recherche de tags pour:', query);
-
-    // Approche simplifiée - récupérer tous les posts avec tags
-    const postsWithTags = await Post.find({ 
-      tags: { $exists: true, $ne: [] },
-      isComment: false 
-    }).select('tags');
-    
-    console.log('Posts trouvés avec tags:', postsWithTags.length);
-    
-    // Extraire tous les tags et filtrer côté JavaScript
-    const allTags = postsWithTags.flatMap(p => p.tags);
-    console.log('Tous les tags extraits:', allTags);
-    
-    // Filtrer les tags qui matchent la recherche (insensible à la casse)
-    const matchingTags = allTags.filter(tag => 
-      tag.toLowerCase().includes(query.toLowerCase())
-    );
-    
-    console.log('Tags qui matchent:', matchingTags);
-    
-    // Éliminer les doublons
-    const uniqueTags = [...new Set(matchingTags)];
-    
-    console.log('Tags uniques retournés:', uniqueTags);
-    
-    // Ajouter headers pour éviter le cache
-    res.set({
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    });
-    
-    res.json(uniqueTags);
-  } catch (error) {
-    console.error('Erreur recherche tags:', error);
-    res.status(500).json({
-      message: 'Erreur lors de la recherche de tags',
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-
 // Recherche de posts par tags
 router.get('/search', authMiddleware, async (req: Request, res: Response) => {
   try {
-    console.log('Route /search appelée');
-    
     if (!req.user?.userId) return res.status(401).json({ message: 'Utilisateur non authentifié' });
     const { tags } = req.query;
     if (!tags || typeof tags !== 'string') return res.status(400).json({ message: 'Paramètre de recherche "tags" requis' });
@@ -211,7 +132,7 @@ router.get('/search', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-// Liker/Unliker un post (votre code existant - ne change pas)
+// Liker/Unliker un post
 router.post(
   '/:postId/like',
   authMiddleware,
@@ -241,6 +162,10 @@ router.post(
         // pas encore liké → on likera
         post.likes.push(userObjId);
         liked = true;
+
+
+
+
 
         // Notification uniquement à la première mise de like
         if (post.author.toString() !== userId) {
@@ -278,6 +203,7 @@ router.post(
     }
   }
 );
+
 
 // Obtenir les commentaires d'un post
 router.get('/:postId/comments', authMiddleware, async (req: Request, res: Response) => {

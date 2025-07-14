@@ -87,88 +87,14 @@ class PrivateMessageRoutes {
     /**
      * @swagger
      * /api/privateMessages/delete/{messageId}:
-     *   delete:
-     *     summary: Supprimer un message privé
-     *     tags: [PrivateMessages]
-     *     parameters:
-     *       - in: path
-     *         name: messageId
-     *         required: true
-     *         description: ID du message à supprimer
-     *         schema:
-     *           type: string
-     *     responses:
-     *       200:
-     *         description: Message supprimé avec succès
-     *       403:
-     *         description: Vous ne pouvez supprimer que vos propres messages
-     *       404:
-     *         description: Message non trouvé
-     *       500:
-     *         description: Erreur lors de la suppression du message
      */
     router.delete('/delete/:messageId', auth, async (req: Request, res: Response) => {
       try {
         const messageId = req.params.messageId;
-        const currentUserId = req.user?.userId;
-
-        console.log('Tentative de suppression:', { messageId, currentUserId });
-
-        if (!currentUserId) {
-          return res.status(401).json({ message: 'Utilisateur non authentifié' });
-        }
-
-        // Vérifier que le message existe et appartient à l'utilisateur
-        const message = await PrivateMessage.findById(messageId);
-        
-        if (!message) {
-          console.log('Message non trouvé:', messageId);
-          return res.status(404).json({ message: 'Message non trouvé' });
-        }
-
-        console.log('Message trouvé:', {
-          messageId: message._id,
-          senderId: message.senderId.toString(),
-          currentUserId: currentUserId
-        });
-
-        // Vérifier que l'utilisateur est bien l'expéditeur du message
-        if (message.senderId.toString() !== currentUserId) {
-          console.log('Tentative de suppression non autorisée:', {
-            messageSenderId: message.senderId.toString(),
-            currentUserId: currentUserId
-          });
-          return res.status(403).json({ 
-            message: 'Vous ne pouvez supprimer que vos propres messages',
-            debug: {
-              messageSenderId: message.senderId.toString(),
-              currentUserId: currentUserId,
-              messageId: messageId
-            }
-          });
-        }
-
-        // Supprimer le message
         const result = await PrivateMessagesRepository.deleteMessage(messageId);
-        
-        console.log('Résultat de la suppression:', result);
-        
-        if (result) {
-          res.json({ 
-            message: 'Message supprimé avec succès', 
-            deletedMessageId: messageId,
-            success: true 
-          });
-        } else {
-          res.status(500).json({ message: 'Erreur lors de la suppression du message' });
-        }
+        res.json({ message: 'Message deleted successfully', result });
       } catch (error: any) {
-        console.error('Erreur lors de la suppression du message:', error);
-        res.status(500).json({ 
-          message: 'Erreur lors de la suppression du message', 
-          error: error.message,
-          messageId: req.params.messageId
-        });
+        res.status(500).json({ message: 'Erreur lors de la suppression du message', error: error.message });
       }
     });
 
