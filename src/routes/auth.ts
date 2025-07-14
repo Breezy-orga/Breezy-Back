@@ -169,4 +169,16 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
+// Déconnexion
+router.post('/logout', (req: Request, res: Response) => {
+  // Supprime le cookie du token côté client
+  res.clearCookie('token', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+  });
+  res.status(200).json({ message: 'Déconnecté' });
+});
+
 export default router;
