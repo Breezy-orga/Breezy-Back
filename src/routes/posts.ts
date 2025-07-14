@@ -5,6 +5,7 @@ import Notification from '../models/Notification';
 import authMiddleware from '../middleware/auth';
 import mongoose from 'mongoose';
 import { PostService } from '../services/postService';
+import { NotificationHelper } from '../utils/notificationHelper'; // Ajout de cet import
 
 const router = express.Router();
 
@@ -14,7 +15,18 @@ router.post('/', authMiddleware, express.json({limit: '50mb'}), async (req: Requ
     if (!req.user?.userId) {
       return res.status(401).json({ message: 'Utilisateur non authentifié' });
     }
+    
     const post = await PostService.createPost(req.body, req.user.userId);
+    
+    // Créer des notifications pour les mentions
+    if (req.body.content) {
+      await NotificationHelper.createMentionNotifications(
+        req.body.content,
+        post._id.toString(),
+        req.user.userId
+      );
+    }
+    
     res.status(201).json(post);
   } catch (error) {
     if (error instanceof Error && error.message.includes('Utilisateur non authentifié')) {
@@ -34,6 +46,7 @@ router.post('/', authMiddleware, express.json({limit: '50mb'}), async (req: Requ
   }
 });
 
+// Le reste de votre code reste identique...
 // Supprimer un post
 router.delete('/:postId', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -198,7 +211,7 @@ router.get('/search', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-// Liker/Unliker un post
+// Liker/Unliker un post (votre code existant - ne change pas)
 router.post(
   '/:postId/like',
   authMiddleware,

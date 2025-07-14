@@ -38,6 +38,15 @@ router.post('/register', async (req: Request, res: Response) => {
       { expiresIn: '24h' }
     );
 
+    // Définir le cookie sécurisé
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
+      path: '/'
+    });
+
     res.status(201).json({
       token,
       user: {
@@ -60,7 +69,6 @@ router.post('/register', async (req: Request, res: Response) => {
 // Connexion
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    console.log('BLABLABLABLA');
     const { identifier, password } = req.body;
     console.log('Login attempt with identifier:', identifier);
 
@@ -95,7 +103,7 @@ router.post('/login', async (req: Request, res: Response) => {
     );
     console.log('Token generated successfully for user:', identifier);
 
-     // Définir le cookie sécurisé
+    // Définir le cookie sécurisé
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -117,6 +125,28 @@ router.post('/login', async (req: Request, res: Response) => {
     console.error('Login error:', error);
     res.status(500).json({ 
       message: 'Erreur lors de la connexion', 
+      error: error instanceof Error ? error.message : String(error) 
+    });
+  }
+});
+
+// Déconnexion
+router.post('/logout', (req: Request, res: Response) => {
+  try {
+    // Supprimer le cookie de token
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
+    });
+
+    console.log('User logged out successfully');
+    res.json({ message: 'Déconnexion réussie' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors de la déconnexion', 
       error: error instanceof Error ? error.message : String(error) 
     });
   }
