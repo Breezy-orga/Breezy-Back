@@ -3,7 +3,8 @@ import authMiddleware from '../../middleware/auth';
 import User from '../../models/User';
 import mongoose from 'mongoose';
 import { userService } from '../../services/userService';
-import { NotificationHelper } from '../../utils/notificationHelper'; // Import ajouté
+import { NotificationHelper } from '../../utils/notificationHelper';
+import { checkContentCreationRights, checkUserStatus } from '../../middleware/userStatus';
 
 const router = express.Router();
 
@@ -57,19 +58,59 @@ class UsersRoutes {
      *         description: Server error
      */
     router.get('/me', authMiddleware, async (req: Request, res: Response) => {
-      try {
-        if (!req.user?.userId) {
-          return res.status(401).json({ message: 'Utilisateur non authentifié' });
-        }
-        const user = await userService.getUserById(req.user.userId);
-        if (!user) {
-          return res.status(404).json({ message: 'User not found' });
-        }
-        res.json(user);
-      } catch (error) {
-        res.status(500).json({ message: 'Erreur serveur', error: error instanceof Error ? error.message : String(error) });
-      }
-    });
+          try {
+            if (!req.user?.userId) {
+              return res.status(401).json({ message: 'Utilisateur non authentifié' });
+            }
+            
+            const user = await userService.getUserById(req.user.userId);
+            if (!user) {
+              return res.status(404).json({ message: 'User not found' });
+            }
+
+            // Vérifier automatiquement si la suspension a expiré
+            if (user.status === 'suspended' && user.suspendedUntil && new Date() > user.suspendedUntil) {
+              console.log('Suspension expirée - réactivation automatique du compte');
+              user.status = 'active';
+              user.suspendedUntil = undefined;
+              user.suspensionReason = undefined;
+              await user.save();
+            }
+
+            // S'assurer que tous les champs sont retournés
+            const userResponse = {
+              _id: user._id,
+              username: user.username,
+              name: user.name,
+              email: user.email,
+              role: user.role,
+              bio: user.bio,
+              profilePicture: user.profilePicture,
+              followers: user.followers,
+              following: user.following,
+              
+              status: user.status || 'active',
+              suspendedUntil: user.suspendedUntil,
+              suspensionReason: user.suspensionReason,
+              moderationHistory: user.moderationHistory,
+              
+              createdAt: user.createdAt,
+              updatedAt: user.updatedAt
+            };
+
+            console.log('Route /me - Retour utilisateur:', {
+              userId: user._id,
+              status: user.status,
+              suspendedUntil: user.suspendedUntil,
+              suspensionReason: user.suspensionReason
+            });
+
+            res.json(userResponse);
+          } catch (error) {
+            console.error('Erreur route /me:', error);
+            res.status(500).json({ message: 'Erreur serveur', error: error instanceof Error ? error.message : String(error) });
+          }
+        });
 
     // Delete a User (admin-only)
     router.delete('/:userId', authMiddleware, async (req: Request, res: Response) => {
@@ -125,7 +166,7 @@ class UsersRoutes {
      *         description: Server error
      */
     // Recherche d'utilisateurs
-    router.get('/search', authMiddleware, async (req: Request, res: Response) => {
+    router.get('/search', authMiddleware, checkUserStatus, async (req: Request, res: Response) => {
       try {
         if (!req.user?.userId) {
           return res.status(401).json({ message: 'Utilisateur non authentifié' });
@@ -179,7 +220,7 @@ class UsersRoutes {
      *       500:
      *         description: Server error
      */
-    router.get('/getById/:id', authMiddleware, async (req: Request, res: Response) => {
+    router.get('/getById/:id', authMiddleware, checkUserStatus, async (req: Request, res: Response) => {
       try {
         const user = await userService.getUserById(req.params.id)
         if (!user) {
@@ -251,7 +292,7 @@ class UsersRoutes {
      *       500:
      *         description: Server error
      */
-    router.put('/profile', authMiddleware, async (req: Request, res: Response) => {
+    router.put('/profile', authMiddleware, checkUserStatus, async (req: Request, res: Response) => {
       try {
         if (!req.user?.userId) {
           return res.status(401).json({ message: 'Utilisateur non authentifié' });
@@ -317,8 +358,6 @@ class UsersRoutes {
         if (!req.user?.userId) {
           return res.status(401).json({ message: 'Utilisateur non authentifié' });
         }
-
-        console.log('=== DEBUG FOLLOW START ===');
         console.log('Current user ID:', req.user.userId);
         console.log('Target user ID:', req.params.userId);
 
@@ -332,7 +371,7 @@ class UsersRoutes {
           id => id.toString() === req.params.userId
         ) || false;
 
-        console.log('État avant changement:');
+        console.log('État avant ');
         console.log('- Following array:', currentUser.following);
         console.log('- Is currently following:', isCurrentlyFollowing);
 
@@ -346,22 +385,20 @@ class UsersRoutes {
         // Créer ou supprimer la notification selon l'action
         if (!isCurrentlyFollowing) {
           // C'était un follow
-          console.log('🔄 Création notification follow...');
+          console.log('Création notification follow...');
           const notification = await NotificationHelper.createFollowNotification(req.params.userId, req.user.userId);
-          console.log('✅ Notification follow créée:', notification);
+          console.log('Notification follow créée:', notification);
           res.json({ message: 'User followed successfully', action: 'followed' });
         } else {
           // C'était un unfollow
-          console.log('🔄 Suppression notification follow...');
+          console.log('Suppression notification follow...');
           await NotificationHelper.removeFollowNotification(req.params.userId, req.user.userId);
-          console.log('✅ Notification follow supprimée');
+          console.log('Notification follow supprimée');
           res.json({ message: 'User unfollowed successfully', action: 'unfollowed' });
         }
 
-        console.log('=== DEBUG FOLLOW END ===');
-
       } catch (error) {
-        console.error('❌ Erreur dans follow route:', error);
+        console.error('Erreur dans follow route:', error);
         if (error instanceof Error && error.message === "you can't follow yourself") {
           return res.status(400).json({ message: error.message });
         }
@@ -424,7 +461,7 @@ class UsersRoutes {
      *         description: Server error
      */
     // Upload de photo de profil
-    router.post('/upload-profile-picture', authMiddleware, async (req: Request, res: Response) => {
+    router.post('/upload-profile-picture', authMiddleware, checkUserStatus, async (req: Request, res: Response) => {
       try {
         if (!req.user?.userId) {
           return res.status(401).json({ message: 'Utilisateur non authentifié' });

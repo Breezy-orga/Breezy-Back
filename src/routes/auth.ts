@@ -159,13 +159,33 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Utilisateur non authentifié' });
     }
     
-    const user = await User.findById(req.user.userId).select('-password');
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ 
-      message: 'Erreur serveur', 
-      error: error instanceof Error ? error.message : String(error) 
+    const user = await User.findById(req.user.userId)
+      .select('-password') // Exclure seulement le mot de passe
+      .populate('followers', 'username name profilePicture status')
+      .populate('following', 'username name profilePicture status');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Vérification automatique de la suspension expirée
+    if (user.status === 'suspended' && user.suspendedUntil && new Date() > user.suspendedUntil) {
+      user.status = 'active';
+      user.suspendedUntil = undefined;
+      user.suspensionReason = undefined;
+      await user.save();
+    }
+
+    console.log('Route /me - Retour utilisateur:', {
+      userId: user._id,
+      status: user.status,
+      suspendedUntil: user.suspendedUntil
     });
+
+    res.json(user); // Retourne tout l'objet user (sauf password)
+  } catch (error) {
+    console.error('Erreur route /me:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error instanceof Error ? error.message : String(error) });
   }
 });
 

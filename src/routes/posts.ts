@@ -5,12 +5,13 @@ import Notification from '../models/Notification';
 import authMiddleware from '../middleware/auth';
 import mongoose from 'mongoose';
 import { PostService } from '../services/postService';
-import { NotificationHelper } from '../utils/notificationHelper'; // Ajout de cet import
+import { NotificationHelper } from '../utils/notificationHelper';
+import { checkContentCreationRights, checkUserStatus } from '../middleware/userStatus';
 
 const router = express.Router();
 
 // Créer un nouveau post
-router.post('/', authMiddleware, express.json({limit: '50mb'}), async (req: Request, res: Response) => {
+router.post('/', authMiddleware, checkContentCreationRights, express.json({limit: '50mb'}), async (req: Request, res: Response) => {
   try {
     if (!req.user?.userId) {
       return res.status(401).json({ message: 'Utilisateur non authentifié' });
@@ -215,6 +216,7 @@ router.get('/search', authMiddleware, async (req: Request, res: Response) => {
 router.post(
   '/:postId/like',
   authMiddleware,
+  checkContentCreationRights,
   async (req: Request, res: Response) => {
     try {
       const userId = req.user?.userId;
@@ -280,7 +282,7 @@ router.post(
 );
 
 // Obtenir les commentaires d'un post
-router.get('/:postId/comments', authMiddleware, async (req: Request, res: Response) => {
+router.get('/:postId/comments', authMiddleware, checkContentCreationRights, async (req: Request, res: Response) => {
   try {
     const comments = await Post.find({ parentPost: req.params.postId, isComment: true })
       .populate('author', 'username profilePicture')

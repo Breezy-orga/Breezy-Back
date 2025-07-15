@@ -52,7 +52,7 @@ private routes() {
         id => id.toString() === req.params.id
       ) || false;
       
-      console.log('État avant changement:');
+      console.log('État avant ');
       console.log('- Following array:', currentUser.following);
       console.log('- Is currently following:', isCurrentlyFollowing);
       

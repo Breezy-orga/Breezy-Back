@@ -21,6 +21,9 @@ import commentRoutes from './routes/comments';
 import notificationRoutes from './routes/notifications';
 import profileRoutes from './routes/userRoutes/profile';
 import followRoutes from './routes/userRoutes/follow';
+import moderationRoutes from './routes/moderation';
+import adminRoutes from './routes/admin';
+import { checkUserStatus } from './middleware/userStatus';
 
 const app: Application = express();
 
@@ -61,6 +64,7 @@ if (NODE_ENV === 'development') {
 }
 
 // Swagger setup
+app.use('/api', checkUserStatus);
 
 // Augmentation de la limite de taille des requêtes JSON à 16MB pour supporter les images en base64
 app.use(express.json({ limit: '16mb' }));
@@ -68,7 +72,6 @@ app.use(morgan('dev'));
 app.use(cookieParser());
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
-
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -82,7 +85,9 @@ app.use('/api/users', usersRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/theme', themeRoutes);
 app.use('/api/follow', followRoutes);
-
+// Routes de modération
+app.use('/api/moderation', moderationRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
 interface ErrorWithMessage extends Error {
@@ -115,6 +120,7 @@ if (NODE_ENV === 'development' || process.env.FORCE_HTTP === 'true') {
   // Pour la portabilité : écoute sur 0.0.0.0 (toutes interfaces)
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT} (${NODE_ENV}) and accessible on 0.0.0.0`);
+    console.log(`Routes de modération disponibles sur http://0.0.0.0:${PORT}/api/moderation`);
   });
 } else {
   // Production : HTTPS obligatoire
@@ -125,6 +131,7 @@ if (NODE_ENV === 'development' || process.env.FORCE_HTTP === 'true') {
     };
     https.createServer(httpsOptions, app).listen(PORT, () => {
       console.log(`Serveur démarré sur le port ${PORT} (HTTPS)`);
+      console.log(`Routes de modération disponibles sur https://localhost:${PORT}/api/moderation`);
     });
   } catch (err) {
     console.error('Erreur lors du chargement des certificats SSL:', err instanceof Error ? err.message : String(err));
