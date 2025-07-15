@@ -24,7 +24,7 @@ import followRoutes from './routes/userRoutes/follow';
 import moderationRoutes from './routes/moderation';
 import adminRoutes from './routes/admin';
 import { checkUserStatus } from './middleware/userStatus';
-
+import requireAuth from './middleware/requireAuth';
 const app: Application = express();
 
 // Middleware
