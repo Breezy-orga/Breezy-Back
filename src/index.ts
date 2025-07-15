@@ -21,6 +21,7 @@ import commentRoutes from './routes/comments';
 import notificationRoutes from './routes/notifications';
 import profileRoutes from './routes/userRoutes/profile';
 import followRoutes from './routes/userRoutes/follow';
+import requireAuth from './middleware/requireAuth';
 import roleRoutes from './routes/userRoutes/role';
 
 
@@ -122,7 +123,7 @@ app.use(cookieParser());
 app.use(express.json({ limit: '16mb' }));
 app.use(morgan('dev'));
 app.use(cookieParser());
-
+app.use(requireAuth)
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 
