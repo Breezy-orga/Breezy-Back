@@ -55,15 +55,7 @@ router.post('/register', async (req: Request, res: Response) => {
         email: user.email,
         profilePicture: user.profilePicture
       }
-    };
-
-    console.log('Réponse d\'inscription réussie:', {
-      userId: user._id,
-      username: user.username,
-      tokenLength: token.length
     });
-
-    res.status(201).json(responseData);
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ 
@@ -72,17 +64,6 @@ router.post('/register', async (req: Request, res: Response) => {
       stack: error instanceof Error ? error.stack : undefined
     });
   }
-});
-
-// Gestion des requêtes OPTIONS pour CORS
-router.options('/login', (req: Request, res: Response) => {
-  const origin = req.headers.origin || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Vary', 'Origin');
-  res.status(204).send();
 });
 
 // Connexion
@@ -125,22 +106,13 @@ router.post('/login', async (req: Request, res: Response) => {
     // Définir le cookie sécurisé
     res.cookie('token', token, {
       httpOnly: true,
-      secure: isSecure,
-      sameSite: isLocalDevelopment ? 'lax' : 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000,
-      path: '/',
-      domain: isProduction ? '.breezy-app.com' : undefined
-    };
-    if (isLocalDevelopment) {
-      console.log('Mode développement: configuration des cookies allégée');
-    }
-    res.cookie('token', token, cookieOptions);
-    console.log('Réponse de connexion réussie:', {
-      userId: user._id,
-      username: user.username,
-      tokenLength: token.length
+      path: '/'
     });
-    return res.json({
+
+    res.json({
       token,
       user: {
         id: user._id,
@@ -149,7 +121,6 @@ router.post('/login', async (req: Request, res: Response) => {
         profilePicture: user.profilePicture
       }
     });
-    // Aucun code après ce return.
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ 

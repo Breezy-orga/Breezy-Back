@@ -120,10 +120,6 @@ private routes() {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Only update fields that are provided and valid
-      if (typeof displayName === 'string' && displayName.trim() !== '') {
-        user.displayName = displayName.trim();
-      }
       
       if (typeof bio === 'string') {
         user.bio = bio;

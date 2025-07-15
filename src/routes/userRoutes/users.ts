@@ -98,6 +98,8 @@ class UsersRoutes {
 
         if (req.user.userId === req.params.userId) {
           res.clearCookie('token', { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/' });
+          return res.json({ message: 'Utilisateur supprimé avec succès', redirect: '/login' });
+
         }
         res.json({ message: 'Utilisateur supprimé avec succès' });
       } catch (error) {
