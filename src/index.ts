@@ -31,37 +31,91 @@ const app: Application = express();
 const NODE_ENV: string = process.env.NODE_ENV || 'development';
 
 // CORS configuration
-// CORS dynamique et portable
-if (NODE_ENV === 'development') {
-  // En dev : autorise tout
-  app.use(cors({
-    origin: true,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-  }));
-  app.options('*', cors());
-} else {
-  // En prod : autorise uniquement le(s) domaine(s) frontend déclarés
-  // FRONTEND_URL peut être une liste séparée par des virgules
-  const allowedOrigins: string[] = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
-    : [];
-  app.use(cors({
-    origin: function(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+// Configuration sécurisée pour les environnements de développement et de production
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // En développement, autoriser localhost:3000 et 127.0.0.1:3000
+    if (NODE_ENV === 'development') {
+      const allowedOrigins = [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000'
+      ];
+      
       if (!origin || allowedOrigins.includes(origin)) {
+        console.log('Développement: origine autorisée:', origin || 'sans origine');
         callback(null, true);
-      } else {
-        console.warn('CORS refused for origin:', origin);
-        callback(new Error('Not allowed by CORS'));
+        return;
       }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-  }));
-  app.options('*', cors());
-}
+      
+      console.warn('CORS refusé pour l\'origine en développement:', origin);
+      callback(new Error('Not allowed by CORS'));
+      return;
+    }
+    
+    // En production, vérifier les origines autorisées
+    const allowedOrigins: string[] = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+      : [];
+    
+    // Autoriser les requêtes sans origine (comme les requêtes POSTMAN ou depuis le serveur)
+    if (!origin) {
+      console.log('Requête sans origine (peut-être une requête côté serveur)');
+      callback(null, true);
+      return;
+    }
+    
+    // Vérifier si l'origine est autorisée
+    if (allowedOrigins.includes(origin)) {
+      console.log('Origine autorisée:', origin);
+      callback(null, true);
+    } else {
+      console.warn('CORS refusé pour l\'origine:', origin);
+      console.log('Origines autorisées:', allowedOrigins);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true, // Important : autoriser les cookies et les en-têtes d'autorisation
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With',
+    'Accept',
+    'Accept-Encoding',
+    'Accept-Language',
+    'Cache-Control',
+    'Connection',
+    'DNT',
+    'Origin',
+    'Referer',
+    'User-Agent',
+    'X-CSRF-Token',
+    'X-Requested-With'
+  ],
+  exposedHeaders: [
+    'Content-Length',
+    'Content-Type',
+    'Date',
+    'ETag',
+    'X-Powered-By',
+    'X-Auth-Token',
+    'X-Token-Expiring-Soon',
+    'Set-Cookie',
+    'Access-Control-Allow-Origin',
+    'Access-Control-Allow-Credentials',
+    'X-CSRF-Token'
+  ],
+  maxAge: 86400, // 24 heures pour les pré-vérifications CORS
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
+// Appliquer la configuration CORS
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Activer les requêtes OPTIONS
+
+// Middleware pour parser les cookies
+app.use(cookieParser());
 
 // Swagger setup
 app.use('/api', checkUserStatus);
@@ -70,7 +124,7 @@ app.use('/api', checkUserStatus);
 app.use(express.json({ limit: '16mb' }));
 app.use(morgan('dev'));
 app.use(cookieParser());
-
+app.use(requireAuth)
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 // Routes

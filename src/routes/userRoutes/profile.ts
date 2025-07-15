@@ -16,19 +16,25 @@ private routes() {
   
   /**
    * @swagger
-   * /api/users/me:
+   * /api/profile/me:
    *   get:
-   *     summary: get current user profile
-   *     tags: [User]
+   *     summary: Get current authenticated user's profile
+   *     tags: [Profile]
+   *     security:
+   *       - bearerAuth: []
    *     responses:
    *       200:
-   *         description: Connexion réussie
-   *       400:
-   *         description: Paramètres invalides
+   *         description: Successfully retrieved user profile
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/User'
    *       401:
-   *         description: Identifiants invalides
+   *         description: Unauthorized - User not authenticated
+   *       404:
+   *         description: User not found
    *       500:
-   *         description: Erreur serveur
+   *         description: Server error
    */
   router.get('/me', authMiddleware, async (req: Request, res: Response) => {
     try {
@@ -36,13 +42,24 @@ private routes() {
         return res.status(401).json({ message: 'Utilisateur non authentifié' });
       }
 
-      const user = await userService.getUserByIdSelectAndPopulate(req.user.userId, '-password', ['posts', 'comments', 'likes']);
+      // Only populate valid fields that exist on the User model
+      const user = await userService.getUserByIdSelectAndPopulate(
+        req.user.userId, 
+        '-password', 
+        ['followers', 'following']
+      );
+      
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
+      
       res.json(user);
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
+      console.error('Error in GET /profile/me:', error);
+      res.status(500).json({ 
+        message: 'Server error', 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
 
@@ -50,10 +67,12 @@ private routes() {
 
   /**
    * @swagger
-   * /api/users/me:
+   * /api/profile/me:
    *   put:
-   *     summary: Update user profile
-   *     tags: [User]
+   *     summary: Update current user's profile
+   *     tags: [Profile]
+   *     security:
+   *       - bearerAuth: []
    *     requestBody:
    *       required: true
    *       content:
@@ -61,41 +80,68 @@ private routes() {
    *           schema:
    *             type: object
    *             properties:
-   *               email:
+   *               displayName:
    *                 type: string
-   *               password:
+   *                 description: User's display name
+   *               bio:
    *                 type: string
+   *                 description: User's biography
+   *               profilePicture:
+   *                 type: string
+   *                 description: URL to the user's profile picture
    *     responses:
    *       200:
-   *         description: Connexion réussie
+   *         description: Profile updated successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/User'
    *       400:
-   *         description: Paramètres invalides
+   *         description: Invalid input
    *       401:
-   *         description: Identifiants invalides
+   *         description: Unauthorized - User not authenticated
+   *       404:
+   *         description: User not found
    *       500:
-   *         description: Erreur serveur
+   *         description: Server error
    */
   router.put('/me', authMiddleware, async (req: Request, res: Response) => {
     try {
       if (!req.user?.userId) {
-        return res.status(401).json({ message: 'Utilisateur non authentifié' });
+        return res.status(401).json({ message: 'Unauthorized - User not authenticated' });
       }
-      
-      const { username, bio, profilePicture } = req.body;
-      const user = await userService.getUserById(req.user.userId);
 
+      const { displayName, bio, profilePicture } = req.body;
+      
+      // Find user and exclude sensitive fields
+      const user = await User.findById(req.user.userId).select('-password -__v');
+      
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      if (username) user.username = username;
-      if (bio) user.bio = bio;
-      if (profilePicture) user.profilePicture = profilePicture;
+      
+      if (typeof bio === 'string') {
+        user.bio = bio;
+      }
+      
+      if (typeof profilePicture === 'string' && profilePicture.trim() !== '') {
+        user.profilePicture = profilePicture.trim();
+      }
 
-      await user.save();
-      res.json(user);
+      // Save the updated user
+      const updatedUser = await user.save();
+      
+      // Return the updated user without sensitive data
+      const { password, ...userWithoutPassword } = updatedUser.toObject();
+      
+      res.json(userWithoutPassword);
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
+      console.error('Error in PUT /profile/me:', error);
+      res.status(500).json({ 
+        message: 'Failed to update profile', 
+        error: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
     }
   });
 }
