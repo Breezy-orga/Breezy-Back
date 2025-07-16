@@ -112,44 +112,89 @@ class UsersRoutes {
           }
         });
 
-    // Delete a User (admin-only)
-    router.delete('/:userId', authMiddleware, async (req: Request, res: Response) => {
-      try {
-        if (!req.user?.userId) {
-          return res.status(401).json({ message: 'Utilisateur non authentifié' });
-        }
-        // On ne peut pas supprimer un admin ou un modérateur
-        const userToDelete = await User.findById(req.params.userId);
-        if (!userToDelete) {
-          return res.status(404).json({ message: 'Utilisateur non trouvé' });
-        }
-        if (userToDelete.role === 'admin' || userToDelete.role === 'moderator') {
-          return res.status(403).json({ message: 'Impossible de supprimer un compte admin ou modérateur.' });
-        }
+  router.delete('/:userId', authMiddleware, async (req: Request, res: Response) => {
+    try {
+      if (!req.user?.userId) {
+        return res.status(401).json({ message: 'Utilisateur non authentifié' });
+      }
 
-        // Seul un utilisateur peut supprimer son propre compte, ou un admin peut supprimer un autre (non admin/modo)
-        if (req.user.userId !== req.params.userId) {
-          const currentUser = await User.findById(req.user.userId);
-          if (!currentUser || currentUser.role !== 'admin') {
-            return res.status(403).json({ message: 'Accès refusé : admin requis pour supprimer un autre compte.' });
-          }
+      const userToDelete = await User.findById(req.params.userId);
+      if (!userToDelete) {
+        return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      }
+
+      // Récupérer l'utilisateur actuel pour vérifier son rôle
+      const currentUser = await User.findById(req.user.userId);
+      if (!currentUser) {
+        return res.status(404).json({ message: 'Utilisateur actuel non trouvé' });
+      }
+
+      console.log('Tentative de suppression:', {
+        currentUserId: req.user.userId,
+        currentUserRole: currentUser.role,
+        targetUserId: req.params.userId,
+        targetUserRole: userToDelete.role,
+        isSelf: req.user.userId === req.params.userId
+      });
+
+      // Vérifications de permissions
+      const isSelf = req.user.userId === req.params.userId;
+      const isAdminOrModerator = ['admin', 'moderator'].includes(currentUser.role);
+
+      // Empêcher la suppression d'admins/modérateurs par des non-admins
+      if (['admin', 'moderator'].includes(userToDelete.role)) {
+        if (!isSelf && currentUser.role !== 'admin') {
+          return res.status(403).json({ 
+            message: 'Seul un administrateur peut supprimer un compte admin ou modérateur',
+            details: 'Droits insuffisants'
+          });
         }
+      }
 
-        await userService.deleteUser(req.params.userId);
-
-        if (req.user.userId === req.params.userId) {
-          res.clearCookie('token', { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/' });
-          return res.json({ message: 'Utilisateur supprimé avec succès', redirect: '/login' });
-
-        }
-        res.json({ message: 'Utilisateur supprimé avec succès' });
-      } catch (error) {
-        res.status(500).json({
-          message: 'Erreur lors de la suppression de l\'utilisateur',
-          error: error instanceof Error ? error.message : String(error)
+      // Vérifications des droits de suppression
+      if (!isSelf && !isAdminOrModerator) {
+        return res.status(403).json({ 
+          message: 'Accès refusé : droits administrateur ou modérateur requis pour supprimer un autre compte',
+          details: 'Permissions insuffisantes'
         });
       }
-    });
+
+      console.log('Suppression autorisée, procédure en cours...');
+
+      // Procéder à la suppression
+      await userService.deleteUser(req.params.userId);
+
+      // Si l'utilisateur supprime son propre compte, déconnexion
+      if (isSelf) {
+        res.clearCookie('token', { 
+          httpOnly: true, 
+          sameSite: 'lax', 
+          secure: process.env.NODE_ENV === 'production', 
+          path: '/' 
+        });
+        return res.json({ 
+          message: 'Utilisateur supprimé avec succès', 
+          redirect: '/login' 
+        });
+      }
+
+      // Suppression d'un autre compte par admin/modérateur
+      res.json({ 
+        message: 'Utilisateur supprimé avec succès',
+        deletedUser: {
+          id: userToDelete._id,
+          username: userToDelete.username
+        }
+      });
+
+    } catch (error) {
+      console.error('Erreur lors de la suppression de l\'utilisateur:', error);
+      res.status(500).json({
+        message: 'Erreur lors de la suppression de l\'utilisateur',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 
     /**
      * @swagger

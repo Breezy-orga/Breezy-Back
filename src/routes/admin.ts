@@ -47,7 +47,7 @@ const requireModerator = async (req: AuthRequest, res: Response, next: NextFunct
       return res.status(403).json({ message: 'Droits de modération requis' });
     }
 
-    req.moderator = user; // Ajouter le modérateur à la requête
+    req.moderator = user;
     next();
   } catch (error) {
     res.status(500).json({ message: 'Erreur de vérification des droits' });
@@ -90,7 +90,7 @@ router.get('/dashboard', authMiddleware, requireModerator, async (req: AuthReque
 });
 
 // GET /api/admin/users
-router.get('/users', authMiddleware, requireAdmin, async (req: AuthRequest, res: Response) => {
+router.get('/users', authMiddleware, requireModerator, async (req: AuthRequest, res: Response) => {
   try {
     const { search, status, page = 1, limit = 20 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
@@ -128,12 +128,13 @@ router.get('/users', authMiddleware, requireAdmin, async (req: AuthRequest, res:
       }
     });
   } catch (error) {
+    console.error('Erreur lors du chargement des utilisateurs:', error);
     res.status(500).json({ message: 'Erreur lors du chargement des utilisateurs' });
   }
 });
 
 // POST /api/admin/users/:userId/suspend
-router.post('/users/:userId/suspend', authMiddleware, requireAdmin, async (req: AuthRequest, res: Response) => {
+router.post('/users/:userId/suspend', authMiddleware, requireModerator, async (req: AuthRequest, res: Response) => {
   try {
     const { reason, duration } = req.body;
     const user = await User.findById(req.params.userId);
@@ -142,8 +143,20 @@ router.post('/users/:userId/suspend', authMiddleware, requireAdmin, async (req: 
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
-    if (user.role === 'admin') {
-      return res.status(403).json({ message: 'Impossible de suspendre un administrateur' });
+    // Empêcher la suspension d'admins par des modérateurs
+    if (user.role === 'admin' && req.moderator?.role !== 'admin') {
+      return res.status(403).json({ 
+        message: 'Vous ne pouvez pas suspendre un administrateur',
+        error: 'Droits insuffisants'
+      });
+    }
+
+    // Empêcher la suspension de modérateurs par d'autres modérateurs
+    if (user.role === 'moderator' && req.moderator?.role === 'moderator') {
+      return res.status(403).json({ 
+        message: 'Vous ne pouvez pas suspendre un autre modérateur',
+        error: 'Droits insuffisants'
+      });
     }
 
     const expiresAt = duration ? new Date(Date.now() + (duration * 24 * 60 * 60 * 1000)) : undefined;
@@ -170,12 +183,13 @@ router.post('/users/:userId/suspend', authMiddleware, requireAdmin, async (req: 
       success: true
     });
   } catch (error) {
+    console.error('Erreur lors de la suspension:', error);
     res.status(500).json({ message: 'Erreur lors de la suspension' });
   }
 });
 
 // POST /api/admin/users/:userId/ban
-router.post('/users/:userId/ban', authMiddleware, requireAdmin, async (req: AuthRequest, res: Response) => {
+router.post('/users/:userId/ban', authMiddleware, requireModerator, async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;
     const { reason } = req.body;
@@ -196,6 +210,14 @@ router.post('/users/:userId/ban', authMiddleware, requireAdmin, async (req: Auth
     if (user.role === 'admin' && req.moderator?.role !== 'admin') {
       return res.status(403).json({ 
         message: 'Vous ne pouvez pas bannir un administrateur',
+        error: 'Droits insuffisants'
+      });
+    }
+
+    // Empêcher le bannissement de modérateurs par d'autres modérateurs
+    if (user.role === 'moderator' && req.moderator?.role === 'moderator') {
+      return res.status(403).json({ 
+        message: 'Vous ne pouvez pas bannir un autre modérateur',
         error: 'Droits insuffisants'
       });
     }
@@ -248,7 +270,7 @@ router.post('/users/:userId/ban', authMiddleware, requireAdmin, async (req: Auth
 });
 
 // POST /api/admin/users/:userId/unban 
-router.post('/users/:userId/unban', authMiddleware, requireAdmin, async (req: AuthRequest, res: Response) => {
+router.post('/users/:userId/unban', authMiddleware, requireModerator, async (req: AuthRequest, res: Response) => {
   try {
     const { reason } = req.body;
     const user = await User.findById(req.params.userId);
@@ -277,6 +299,7 @@ router.post('/users/:userId/unban', authMiddleware, requireAdmin, async (req: Au
       success: true
     });
   } catch (error) {
+    console.error('Erreur lors de la réactivation:', error);
     res.status(500).json({ message: 'Erreur lors de la réactivation' });
   }
 });
