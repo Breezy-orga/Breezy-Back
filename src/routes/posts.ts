@@ -246,20 +246,25 @@ router.post(
 
         // Notification uniquement à la première mise de like
         if (post.author.toString() !== userId) {
-          const notifExists = await Notification.findOne({
-            recipient: post.author,
-            sender: userId,
-            type: 'like',
-            post: post._id,
-          });
-          if (!notifExists) {
-            await Notification.create({
+          // Récupère le rôle du destinataire
+          const recipientUser = await User.findById(post.author).select('role');
+          const role = recipientUser?.role?.toLowerCase();
+          if (!role || !['admin', 'moderateur', 'moderator'].some(r => role.includes(r))) {
+            const notifExists = await Notification.findOne({
               recipient: post.author,
               sender: userId,
               type: 'like',
               post: post._id,
-              read: false,
             });
+            if (!notifExists) {
+              await Notification.create({
+                recipient: post.author,
+                sender: userId,
+                type: 'like',
+                post: post._id,
+                read: false,
+              });
+            }
           }
         }
       }

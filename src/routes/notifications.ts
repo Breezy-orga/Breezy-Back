@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import authMiddleware from '../middleware/auth';
 import Notification from '../models/Notification';
+import User from '../models/User';
 
 const router = express.Router();
 
@@ -77,6 +78,16 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
     // Ne pas créer de notification pour soi-même
     if (recipient === req.user.userId) {
       return res.status(400).json({ message: 'Impossible de créer une notification pour soi-même' });
+    }
+
+    // Récupérer le rôle du destinataire
+    const recipientUser = await User.findById(recipient).select('role');
+    const role = recipientUser?.role;
+    console.log('Role du destinataire:', role);
+    const roleLower = role?.toLowerCase();
+    if (roleLower && ['admin', 'moderateur', 'moderator'].some(r => roleLower.includes(r)) && type !== 'mention') {
+      // Ne pas créer de notification de like ou follow pour admin/moderateur
+      return res.status(204).end();
     }
 
     // Vérifier si une notification similaire existe déjà (pour éviter les doublons)
@@ -277,6 +288,16 @@ export const createNotification = async (
   try {
     // Ne pas créer de notification pour soi-même
     if (recipient === sender) {
+      return null;
+    }
+
+    // Récupérer le rôle du destinataire
+    const recipientUser = await User.findById(recipient).select('role');
+    const role = recipientUser?.role;
+    console.log('Role du destinataire:', role);
+    const roleLower = role?.toLowerCase();
+    if (roleLower && ['admin', 'moderateur', 'moderator'].some(r => roleLower.includes(r)) && type !== 'mention') {
+      // Ne pas créer de notification de like ou follow pour admin/moderateur
       return null;
     }
 
