@@ -121,6 +121,13 @@ export class NotificationHelper {
         console.log('Même utilisateur, pas de notification');
         return;
       }
+      // Récupère le rôle du destinataire
+      const recipientUser = await require('../models/User').default.findById(followedUserId).select('role');
+      const role = recipientUser?.role?.toLowerCase();
+      if (role && ['admin', 'moderateur', 'moderator'].some(r => role.includes(r))) {
+        console.log('Pas de notification de follow pour le rôle:', role);
+        return;
+      }
       const existing = await Notification.findOne({
         recipient: followedUserId,
         sender: followerId,
