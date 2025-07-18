@@ -42,7 +42,7 @@ export class PostService {
                 });
 
                 // Populer l'auteur
-                await post.populate('author', 'username profilePicture');
+                await post.populate('author', 'username name profilePicture');
                 // Populer les médias et injecter base64, contentType, alt
                 await post.populate({
                     path: 'media',

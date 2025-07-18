@@ -47,7 +47,6 @@ router.post('/', authMiddleware, checkContentCreationRights, express.json({limit
   }
 });
 
-// Le reste de votre code reste identique...
 // Supprimer un post
 router.delete('/:postId', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -84,8 +83,8 @@ router.get('/feed', authMiddleware, async (req: Request, res: Response) => {
       console.log('Flux complet (tous les posts) demandé');
     }
     const posts = await Post.find(query)
-      .populate('author', 'username profilePicture')
-      .populate('media', 'base64 contentType alt')  // media
+      .populate('author', 'username name profilePicture') 
+      .populate('media', 'base64 contentType alt')
       .populate('likes', 'username')
       .sort({ createdAt: -1 })
       .limit(50);
@@ -109,8 +108,8 @@ router.get('/feed', authMiddleware, async (req: Request, res: Response) => {
 router.get('/user/:userId', authMiddleware, async (req: Request, res: Response) => {
   try {
     const posts = await Post.find({ author: req.params.userId, isComment: false })
-      .populate('author', 'username profilePicture')
-      .populate('media', 'base64 contentType alt')  // media
+      .populate('author', 'username name profilePicture') 
+      .populate('media', 'base64 contentType alt')
       .populate('likes', 'username')
       .sort({ createdAt: -1 });
     res.json(posts);
@@ -197,8 +196,8 @@ router.get('/search', authMiddleware, async (req: Request, res: Response) => {
     const tagArray = (tags as string).split(/[\s,]+/).map(tag => tag.replace(/^#/, '').trim()).filter(tag => tag.length > 0);
     if (!tagArray.length) return res.status(400).json({ message: 'Au moins un tag valide est requis' });
     const posts = await Post.find({ tags: { $in: tagArray }, isComment: false })
-      .populate('author', 'username profilePicture')
-      .populate('media', 'base64 contentType alt')  // media
+      .populate('author', 'username name profilePicture') 
+      .populate('media', 'base64 contentType alt')
       .populate('likes', 'username')
       .sort({ createdAt: -1 })
       .limit(50);
@@ -212,7 +211,7 @@ router.get('/search', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-// Liker/Unliker un post (votre code existant - ne change pas)
+// Liker/Unliker un post
 router.post(
   '/:postId/like',
   authMiddleware,
@@ -290,8 +289,8 @@ router.post(
 router.get('/:postId/comments', authMiddleware, checkContentCreationRights, async (req: Request, res: Response) => {
   try {
     const comments = await Post.find({ parentPost: req.params.postId, isComment: true })
-      .populate('author', 'username profilePicture')
-      .populate('media', 'base64 contentType alt')  // media
+      .populate('author', 'username name profilePicture') 
+      .populate('media', 'base64 contentType alt')
       .populate('likes', 'username')
       .sort({ createdAt: -1 });
     res.json(comments);
@@ -307,8 +306,8 @@ router.get('/:postId/comments', authMiddleware, checkContentCreationRights, asyn
 router.get('/:postId', authMiddleware, async (req: Request, res: Response) => {
   try {
     const post = await Post.findById(req.params.postId)
-      .populate('author', 'username profilePicture')
-      .populate('media', 'base64 contentType alt')  // media
+      .populate('author', 'username name profilePicture') 
+      .populate('media', 'base64 contentType alt')
       .populate('likes', 'username');
     if (!post) return res.status(404).json({ message: 'Post ou commentaire non trouvé' });
     res.json(post);
